@@ -241,11 +241,20 @@ public class TextEditingTargetVisualMode
    {
       if (isActivated()) 
       {
+         // get reference to the editing container 
+         TextEditorContainer editorContainer = view_.editorContainer();
+         
+         // show progress
+         progress_.beginProgressOperation(400);
+         editorContainer.activateWidget(progress_);
+         
          syncFromEditor(() -> {
-            // it's possiblet that the sync could end up removing 
-            // the panmirror widget entirely, in that case be sure
-            // that we re-activate the widget
-            view_.editorContainer().activateWidget(panmirror_, false);
+            // clear progress
+            progress_.endProgressOperation();
+            
+            // re-activate panmirror widget
+            editorContainer.activateWidget(panmirror_, false);
+            
          }, false);
       }
    }
@@ -253,6 +262,21 @@ public class TextEditingTargetVisualMode
  
    public void manageCommands()
    {
+      if (isActivated())
+      {
+         // if this is the first time we've switched to the doc
+         // while in visual mode then complete initialization
+         if (!haveEditedInVisualMode_)
+         {
+            haveEditedInVisualMode_ = true;
+            manageUI(true, true);
+         }
+         else
+         {
+            syncDevTools();
+         }
+      }
+      
       disableForVisualMode(
         commands_.insertChunk(),
         commands_.jumpTo(),
@@ -332,25 +356,6 @@ public class TextEditingTargetVisualMode
       withPanmirror(() -> {
          panmirror_.activateDevTools();
       });
-   }
-   
-   public void onUserEditingDoc()
-   {
-      if (isActivated())
-      {
-         // if this is the first time we've switched to the doc
-         // while in visual mode then complete initialization
-         if (!haveEditedInVisualMode_)
-         {
-            haveEditedInVisualMode_ = true;
-            manageUI(true, true);
-         }
-         else
-         {
-            syncDevTools();
-         }
-      }
-        
    }
    
    public void onClosing()
