@@ -6,7 +6,6 @@ dev environment dependencies (via install-npm-dependencies script?)
 ## TODO
 - Dockerfiles
 - Package build vs. developer build
-- Switch to TypeScript
-- Minification, so forth
-- Signing, anything unique about Electron apps?
 - Installers
+- Switch to TypeScript?
+- Approach for Qt-based dialogs (Pick R, Licensing, RDP), likely modal BrowserWindow using ?? for UI
