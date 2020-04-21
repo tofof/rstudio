@@ -6,14 +6,18 @@ pandoc schema: <https://github.com/jgm/pandoc-types/blob/master/Text/Pandoc/Defi
 
 ## TODO
 
+executing python line-by-line w/ an Rmd open in visual mode doesn't work
+(because we've disabled that command -- does it not call manageCommands?)
+
+
+Look into Joe's review of the scoped actions handler
+
 Implement shortcode handling (https://gohugo.io/content-management/shortcodes/)
   - Pattern matching based mark detector for just the standard and close variations (standalone marks)
-  - WriteRawMarkdown for < > delimiters
-  - Command in UI?
-  - Consider shortcode blocks?
-
-
-Consider math in code feature for blackfriday (wrap/unwrap). Would need BlogdownExtensions.mathInCode
+  - WriteRawMarkdown for < > delimiters (but leave inside along)
+  - Command in UI that inserts an inline shortcode
+  - mark detector / deleter
+  - Consider shortcode blocks? (regognize by single-line begin then scan to end)
 
 Link popups no longer truncated (see advanced_ui.Rmd)
 
@@ -28,6 +32,7 @@ Bookdown & Blogdown docs:
   - @ref has no \
   - Heading parts (need to explicitly use .unnumbered and don't use the \* escape)
   - Using blackfriday explicitly
+  - Setting the doctype(s) explicitly (should xref be a doctype or should it be distill)
 
 MathJax preview. When containing the selection, the math will show both the code and the preview. When not containing the selection will show the preview. (so probably require a node view for this). Consider a “done” gesture for display math. May need to bring back
 escaping of $ in math as this mode will clearly not be "source mode" style latex equation editing
