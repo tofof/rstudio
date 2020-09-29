@@ -1,7 +1,7 @@
 /*
  * trailing_p.ts
  *
- * Copyright (C) 2019-20 by RStudio, PBC
+ * Copyright (C) 2020 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -15,13 +15,15 @@
 
 import { Transaction, Selection } from 'prosemirror-state';
 import { Node as ProsemirrorNode, Schema } from 'prosemirror-model';
+import { Transform } from 'prosemirror-transform';
+import { ContentNodeWithPos } from 'prosemirror-utils';
 
 import { Extension } from '../api/extension';
 import { editingRootNode } from '../api/node';
 import { FixupContext } from '../api/fixup';
+import { trTransform } from '../api/transaction';
 
 const extension: Extension = {
-
   fixups: (schema: Schema) => {
     return [
       (tr: Transaction, context: FixupContext) => {
@@ -31,7 +33,7 @@ const extension: Extension = {
           }
         }
         return tr;
-      }
+      },
     ];
   },
 
@@ -44,28 +46,31 @@ const extension: Extension = {
             insertTrailingP(tr);
           }
           return tr;
-        }
-      }
+        },
+      },
     ];
-  }
+  },
 };
 
 function insertTrailingP(tr: Transaction) {
-  const schema = tr.doc.type.schema;
   const editingNode = editingRootNode(tr.selection);
   if (editingNode) {
-    tr.insert(
-      editingNode.pos + editingNode.node.nodeSize - 1, 
-      schema.nodes.paragraph.create()
-    );
+    trTransform(tr, insertTrailingPTransform(editingNode));
   }
 }
 
+function insertTrailingPTransform(editingNode: ContentNodeWithPos) {
+  return (tr: Transform) => {
+    const schema = editingNode.node.type.schema;
+    tr.insert(editingNode.pos + editingNode.node.nodeSize - 1, schema.nodes.paragraph.create());
+  };
+}
 
 function requiresTrailingP(selection: Selection) {
   const editingRoot = editingRootNode(selection);
   if (editingRoot) {
-    return !isParagraphNode(editingRoot.node.lastChild);
+    return !isParagraphNode(editingRoot.node.lastChild) ||
+      isDisplayMathNode(editingRoot.node.lastChild);
   } else {
     return false;
   }
@@ -75,6 +80,14 @@ function isParagraphNode(node: ProsemirrorNode | null | undefined) {
   if (node) {
     const schema = node.type.schema;
     return node.type === schema.nodes.paragraph;
+  } else {
+    return false;
+  }
+}
+
+function isDisplayMathNode(node: ProsemirrorNode | null | undefined) {
+  if (node && node.firstChild) {
+    return node.childCount === 1 && node.type.schema.marks.math?.isInSet(node.firstChild.marks);
   } else {
     return false;
   }

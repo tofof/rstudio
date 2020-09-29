@@ -1,7 +1,7 @@
 /*
  * raw_inline.ts
  *
- * Copyright (C) 2019-20 by RStudio, PBC
+ * Copyright (C) 2020 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -18,22 +18,27 @@ import { EditorState, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { toggleMark } from 'prosemirror-commands';
 
-import { Extension } from '../../api/extension';
+import { Extension, ExtensionContext } from '../../api/extension';
 import { ProsemirrorCommand, EditorCommandId } from '../../api/command';
-import { PandocOutput, PandocToken, PandocTokenType, PandocExtensions } from '../../api/pandoc';
+import { PandocOutput, PandocToken, PandocTokenType } from '../../api/pandoc';
 import { getMarkRange, markIsActive, getMarkAttrs } from '../../api/mark';
-import { EditorUI, RawFormatProps } from '../../api/ui';
+import { EditorUI } from '../../api/ui';
+import { RawFormatProps } from '../../api/ui-dialogs';
 import { canInsertNode } from '../../api/node';
 import { fragmentText } from '../../api/fragment';
-import { PandocCapabilities } from '../../api/pandoc_capabilities';
+import { OmniInsertGroup } from '../../api/omni_insert';
 
 export const kRawInlineFormat = 0;
 export const kRawInlineContent = 1;
 
-const extension = (pandocExtensions: PandocExtensions, pandocCapabilities: PandocCapabilities): Extension | null => {
-  if (!pandocExtensions.raw_attribute) {
-    return null;
-  }
+const extension = (context: ExtensionContext): Extension | null => {
+  const { pandocExtensions, pandocCapabilities, ui } = context;
+
+  // always enabled so that extensions can make use of preprocessors + raw_attribute
+  // to hoist content out of pandoc for further processing by our token handlers.
+  // that means that users can always use the raw attribute in their markdown even
+  // if the editing format doesn't support it (in which case it will just get echoed
+  // back to the markdown just the way it was written).
 
   // return the extension
   return {
@@ -41,9 +46,10 @@ const extension = (pandocExtensions: PandocExtensions, pandocCapabilities: Pando
       {
         name: 'raw_inline',
         noInputRules: true,
+        noSpelling: true,
         spec: {
           inclusive: false,
-          excludes: '_',
+          excludes: 'formatting',
           attrs: {
             format: {},
           },
@@ -82,7 +88,7 @@ const extension = (pandocExtensions: PandocExtensions, pandocCapabilities: Pando
             },
           ],
           writer: {
-            priority: 20,
+            priority: 1,
             write: (output: PandocOutput, mark: Mark, parent: Fragment) => {
               // get raw content
               const raw = fragmentText(parent);
@@ -99,8 +105,12 @@ const extension = (pandocExtensions: PandocExtensions, pandocCapabilities: Pando
     ],
 
     // insert command
-    commands: (_schema: Schema, ui: EditorUI) => {
-      return [new RawInlineCommand(EditorCommandId.RawInline, '', ui, pandocCapabilities.output_formats)];
+    commands: (_schema: Schema) => {
+      if (pandocExtensions.raw_attribute) {
+        return [new RawInlineCommand(EditorCommandId.RawInline, '', ui, pandocCapabilities.output_formats)];
+      } else {
+        return [];
+      }
     },
   };
 };
@@ -108,8 +118,8 @@ const extension = (pandocExtensions: PandocExtensions, pandocCapabilities: Pando
 // base class for inline commands that auto-insert content
 export class RawInlineInsertCommand extends ProsemirrorCommand {
   private markType: MarkType;
-  constructor(id: EditorCommandId, markType: MarkType, insert: (tr: Transaction) => void) {
-    super(id, [], (state: EditorState, dispatch?: (tr: Transaction) => void) => {
+  constructor(id: EditorCommandId, keymap: readonly string[], markType: MarkType, insert: (tr: Transaction) => void) {
+    super(id, keymap, (state: EditorState, dispatch?: (tr: Transaction) => void) => {
       // if we aren't active then make sure we can insert a text node here
       if (!this.isActive(state) && !canInsertNode(state, markType.schema.nodes.text)) {
         return false;
@@ -207,6 +217,14 @@ export class RawInlineCommand extends ProsemirrorCommand {
         asyncInlineRaw();
 
         return true;
+      },
+      {
+        name: ui.context.translateText('Raw Inline...'),
+        description: ui.context.translateText('Raw inline content'),
+        group: OmniInsertGroup.Content,
+        priority: 0,
+        image: () =>
+          ui.prefs.darkMode() ? ui.images.omni_insert?.raw_inline_dark! : ui.images.omni_insert?.raw_inline!,
       },
     );
   }

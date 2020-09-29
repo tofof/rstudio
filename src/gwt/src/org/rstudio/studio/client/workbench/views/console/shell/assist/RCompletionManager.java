@@ -1,7 +1,7 @@
 /*
  * RCompletionManager.java
  *
- * Copyright (C) 2009-20 by RStudio, PBC
+ * Copyright (C) 2020 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -108,7 +108,15 @@ public class RCompletionManager implements CompletionManager
       rnwContext_ = rnwContext;
       docDisplay_ = docDisplay;
       isConsole_ = isConsole;
-      sigTipManager_ = new SignatureToolTipManager(docDisplay_);
+      sigTipManager_ = new SignatureToolTipManager(docDisplay_)
+      {
+         @Override
+         protected boolean isEnabled(Position position)
+         {
+            return DocumentMode.isPositionInRMode(docDisplay_, position);
+         }
+      };
+      
       suggestTimer_ = new SuggestionTimer(this, userPrefs_);
       snippets_ = new SnippetHelper((AceEditor) docDisplay, getSourceDocumentPath());
       requester_ = new CompletionRequester(rnwContext, docDisplay, snippets_);

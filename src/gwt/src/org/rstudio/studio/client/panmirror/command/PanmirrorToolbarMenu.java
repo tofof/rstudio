@@ -1,7 +1,7 @@
 /*
  * PanmirrorToolbarMenu.java
  *
- * Copyright (C) 2009-20 by RStudio, PBC
+ * Copyright (C) 2020 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -31,6 +31,13 @@ public class PanmirrorToolbarMenu extends ToolbarPopupMenu implements PanmirrorC
       init(commands);
    }
    
+   public PanmirrorToolbarMenu(PanmirrorToolbarCommands commands, PanmirrorMenuItem[] items)
+   {
+      this(commands);
+      addItems(this, items);
+   }
+   
+   
    private PanmirrorToolbarMenu(PanmirrorToolbarMenu parent, PanmirrorToolbarCommands commands)
    {
       super(parent);
@@ -45,6 +52,12 @@ public class PanmirrorToolbarMenu extends ToolbarPopupMenu implements PanmirrorC
    }
    
    @Override
+   public void sync(boolean images)
+   {
+      uiObjects_.forEach(object -> object.sync(images));
+   }
+   
+   @Override
    public void getDynamicPopupMenu 
       (final ToolbarPopupMenu.DynamicPopupMenuCallback callback)
    {
@@ -54,7 +67,12 @@ public class PanmirrorToolbarMenu extends ToolbarPopupMenu implements PanmirrorC
    
    public void addCommand(String id)
    {
-      PanmirrorCommandMenuItem item = new PanmirrorCommandMenuItem(commands_.get(id));
+      addCommand(id, null);
+   }
+   
+   public void addCommand(String id, String menuText)
+   {
+      PanmirrorCommandMenuItem item = new PanmirrorCommandMenuItem(commands_.get(id), menuText);
       addItem(item);
       uiObjects_.add(item); 
    }
@@ -62,18 +80,71 @@ public class PanmirrorToolbarMenu extends ToolbarPopupMenu implements PanmirrorC
    public PanmirrorToolbarMenu addSubmenu(String text)
    { 
       PanmirrorToolbarMenu submenu = new PanmirrorToolbarMenu(this, commands_);
-      submenu.addMenuBarStyle(RES.styles().toolbarPopupMenu());
+      submenu.addMenuBarStyle(RES.styles().toolbarPopupSubmenu());
       addItem(new MenuItem(menuText(text)), submenu);
       uiObjects_.add(submenu);
       return submenu;
    }
-  
-   @Override
-   public void sync(boolean images)
+   
+   public void addItems(PanmirrorMenuItem[] items)
    {
-      uiObjects_.forEach(object -> object.sync(images));
+      addItems(this, items);
    }
    
+   private void addItems(PanmirrorToolbarMenu menu, PanmirrorMenuItem[] items)
+   {
+      for (PanmirrorMenuItem item : items)
+      {
+         if (item.exec != null && item.text != null)
+         {
+            MenuItem menuItem = new MenuItem(SafeHtmlUtils.fromTrustedString(item.text), () -> {
+               item.exec.call();
+            });
+            menu.addItem(menuItem);
+         }
+         else if (item.command != null)
+         {
+            menu.addCommand(item.command);
+         }
+         else if (item.subMenu != null && item.text != null)
+         {
+            if (haveCommandsFrom(item.subMenu.items))
+            {
+               PanmirrorToolbarMenu subMenu = menu.addSubmenu(item.text);
+               addItems(subMenu, item.subMenu.items);
+            }
+         }
+         else if (item.separator)
+         {
+            menu.addSeparator();
+         }
+      }
+   }
+   
+   private boolean haveCommandsFrom(PanmirrorMenuItem[] items)
+   {
+      for (PanmirrorMenuItem item : items)
+      {  
+         if (item.exec != null && item.text != null)
+         {
+            return true;
+         }
+         else if (item.command != null)
+         {
+            if (commands_.get(item.command) != null)
+               return true;
+         }
+         else if (item.subMenu != null && item.text != null)
+         {
+            if (haveCommandsFrom(item.subMenu.items))
+               return true;
+         }
+      }
+      
+     return false;
+   }
+  
+  
    private static SafeHtml menuText(String text)
    {
       return SafeHtmlUtils.fromTrustedString(AppCommand.formatMenuLabel(null, text, null));

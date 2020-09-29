@@ -1,7 +1,7 @@
 /*
  * Response.cpp
  *
- * Copyright (C) 2009-20 by RStudio, PBC
+ * Copyright (C) 2020 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -22,6 +22,7 @@
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/trim.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/asio/buffer.hpp>
 
@@ -270,10 +271,10 @@ Response::Response()
 {
 }   
    
-const std::string& Response::statusMessage() const    
+const std::string& Response::statusMessage() const
 { 
-   ensureStatusMessage();  
-   return statusMessage_; 
+   ensureStatusMessage();
+   return statusMessage_;
 } 
 
 void Response::setStatusMessage(const std::string& statusMessage) 
@@ -310,7 +311,7 @@ void Response::setCacheForeverHeaders(bool publicAccessiblity)
    std::string accessibility = publicAccessiblity ? "public" : "private";
    std::string cacheControl(accessibility + ", max-age=" + 
                             safe_convert::numberToString(durationSeconds));
-   setHeader("Cache-Control", cacheControl);   
+   setHeader("Cache-Control", cacheControl);
 }
 
 void Response::setCacheForeverHeaders()
@@ -367,7 +368,11 @@ void Response::setFrameOptionHeaders(const std::string& options)
       }
    }
 
-   if (!option.empty())
+   // multiple space-separated domains not supported by X-Frame-Options, so if 
+   // there's a space, don't set the header (modern browsers will use the
+   // previously-set Content-Security-Policy)
+   if (!option.empty() &&
+         boost::algorithm::trim_copy(options).find_first_of(' ') == std::string::npos)
       setHeader("X-Frame-Options", option);
 }
 
@@ -381,15 +386,41 @@ void Response::setBrowserCompatible(const Request& request)
 void Response::addCookie(const Cookie& cookie) 
 {
    addHeader("Set-Cookie", cookie.cookieHeaderValue());
+
+   // some browsers may swallow a cookie with SameSite=None
+   // so create an additional legacy cookie without SameSite
+   // which would be swalllowed by a standard-conforming browser
+   if (cookie.sameSite() == Cookie::SameSite::None)
+   {
+      Cookie legacyCookie = cookie;
+      legacyCookie.setName(legacyCookie.name() + kLegacyCookieSuffix);
+      legacyCookie.setSameSite(Cookie::SameSite::Undefined);
+      addHeader("Set-Cookie", legacyCookie.cookieHeaderValue());
+   }
 }
 
- Headers Response::getCookies() const
+ Headers Response::getCookies(const std::vector<std::string>& names /*= {}*/) const
  {
     http::Headers headers;
     for (const http::Header& header : headers_)
     {
        if (header.name == "Set-Cookie")
-          headers.push_back(header);
+       {
+          if (names.empty())
+          {
+            headers.push_back(header);
+          }
+          else
+          {
+             for (const std::string& name : names)
+             {
+               if (boost::algorithm::starts_with(header.value, name))
+                  headers.push_back(header);
+               else if (boost::algorithm::starts_with(header.value, name + kLegacyCookieSuffix))
+                  headers.push_back(header);
+             }
+          }
+       }
     }
     return headers;
  }
@@ -569,8 +600,10 @@ std::string safeLocation(const std::string& location)
 void Response::setMovedPermanently(const http::Request& request,
                                    const std::string& location)
 {
-   std::string uri = URL::complete(request.absoluteUri(),
-                                   safeLocation(location));
+   std::string path = URL(location).protocol() != ""
+      ? location
+      : request.rootPath() + '/' + safeLocation(location);
+   std::string uri = URL::complete(request.baseUri(), path);
    setError(http::status::MovedPermanently, uri);
    setHeader("Location", uri);
 }
@@ -578,8 +611,10 @@ void Response::setMovedPermanently(const http::Request& request,
 void Response::setMovedTemporarily(const http::Request& request,
                                    const std::string& location)
 {
-   std::string uri = URL::complete(request.absoluteUri(),
-                                   safeLocation(location));
+   std::string path = URL(location).protocol() != ""
+      ? location
+      : request.rootPath() + '/' + safeLocation(location);
+   std::string uri = URL::complete(request.baseUri(), path);
    setError(http::status::MovedTemporarily, uri);
    setHeader("Location", uri);
 }
@@ -686,19 +721,19 @@ void Response::ensureStatusMessage() const
             break;
 
          case SeeOther:
-            statusMessage_ = status::Message::SeeOther ;
+            statusMessage_ = status::Message::SeeOther;
             break;
 
          case NotModified:
-            statusMessage_ = status::Message::NotModified ;
+            statusMessage_ = status::Message::NotModified;
             break;
 
          case BadRequest:
-            statusMessage_ = status::Message::BadRequest ;
+            statusMessage_ = status::Message::BadRequest;
             break;
 
          case Unauthorized:
-            statusMessage_ = status::Message::Unauthorized ;
+            statusMessage_ = status::Message::Unauthorized;
             break;
 
          case Forbidden:

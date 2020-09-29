@@ -1,7 +1,7 @@
 /*
  * command.ts
  *
- * Copyright (C) 2019-20 by RStudio, PBC
+ * Copyright (C) 2020 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -15,7 +15,7 @@
 
 import { lift, setBlockType, toggleMark, wrapIn } from 'prosemirror-commands';
 import { MarkType, Node as ProsemirrorNode, NodeType } from 'prosemirror-model';
-import { wrapInList } from 'prosemirror-schema-list';
+import { wrapInList, liftListItem } from 'prosemirror-schema-list';
 import { EditorState, Transaction } from 'prosemirror-state';
 import { findParentNode, findParentNodeOfType, setTextSelection } from 'prosemirror-utils';
 import { EditorView } from 'prosemirror-view';
@@ -23,6 +23,9 @@ import { EditorView } from 'prosemirror-view';
 import { markIsActive } from './mark';
 import { canInsertNode, nodeIsActive } from './node';
 import { pandocAttrInSpec, pandocAttrAvailable, pandocAttrFrom } from './pandoc_attr';
+import { isList } from './list';
+import { OmniInsert } from './omni_insert';
+import { EditorUIPrefs, kListSpacingTight } from './ui';
 
 export enum EditorCommandId {
   // text editing
@@ -64,7 +67,7 @@ export enum EditorCommandId {
   ListItemSplit = '19BBD87F-96D6-4276-B7B8-470652CF4106',
   ListItemCheck = '2F6DA9D8-EE57-418C-9459-50B6FD84137F',
   ListItemCheckToggle = '34D30F3D-8441-44AD-B75A-415DA8AC740B',
-  OrderedListEdit = 'E006A68C-EA39-4954-91B9-DDB07D1CBDA2',
+  EditListProperties = 'E006A68C-EA39-4954-91B9-DDB07D1CBDA2',
 
   // tables
   TableInsertTable = 'FBE39613-2DAA-445D-9E92-E1EABFB33E2C',
@@ -85,6 +88,7 @@ export enum EditorCommandId {
   TableAlignColumnDefault = '7860A9C1-60AF-40AD-9EB8-A10F6ADF25C5',
 
   // insert
+  OmniInsert = '12F96C13-38C1-4266-A0A1-E871D8C709FB',
   Link = '842FCB9A-CA61-4C5F-A0A0-43507B4B3FA9',
   RemoveLink = '072D2084-218D-4A34-AF1F-7E196AF684B2',
   Image = '808220A3-2B83-4CB6-BCC1-46565D54FA47',
@@ -92,7 +96,7 @@ export enum EditorCommandId {
   ParagraphInsert = '4E68830A-3E68-450A-B3F3-2591F4EB6B9A',
   HorizontalRule = 'EAA7115B-181C-49EC-BDB1-F0FF10369278',
   YamlMetadata = '431B5A45-1B25-4A55-9BAF-C0FE95D9B2B6',
-  RmdChunk = 'EBFD21FF-4A6E-4D88-A2E0-B38470B00BB9',
+  Shortcode = '0FDDA7E8-419D-4A5D-A1F5-74061466655D',
   InlineMath = 'A35C562A-0BD6-4B14-93D5-6FF3BE1A0C8A',
   DisplayMath = '3E36BA99-2AE9-47C3-8C85-7CC5314A88DF',
   Citation = 'EFFCFC81-F2E7-441E-B7FA-C693146B4185',
@@ -100,14 +104,36 @@ export enum EditorCommandId {
   DefinitionList = 'CFAB8F4D-3350-4398-9754-8DE0FB95167B',
   DefinitionTerm = '204D1A8F-8EE6-424A-8E69-99768C85B39E',
   DefinitionDescription = 'F0738D83-8E11-4CB5-B958-390190A2D7DD',
+  Symbol = '1419765F-6E4A-4A4C-8670-D9E8578EA996',
+  Emoji = 'F73896A2-02CC-4E5D-A596-78444A1D2A37',
+  EmDash = '5B0DD33B-6209-4713-B8BB-60B5CA0BC3B3',
+  EnDash = 'C32AFE32-0E57-4A16-9C39-88EB1D82B8B4',
+  NonBreakingSpace = 'CF6428AB-F36E-446C-8661-2781B2CD1169',
+  HardLineBreak = '3606FF87-866C-4729-8F3F-D065388FC339',
 
   // raw
   TexInline = 'CFE8E9E5-93BA-4FFA-9A77-BA7EFC373864',
   TexBlock = 'BD11A6A7-E528-40A2-8139-3F8F5F556ED2',
+  HTMLComment = 'F973CBA4-2882-4AC5-A642-47F4733EBDD4',
   HTMLInline = 'C682C6B5-E58D-498C-A38F-FB07BEC3A82D',
   HTMLBlock = '6F9F64AF-711F-4F91-8642-B51C41717F31',
   RawInline = '984167C8-8582-469C-97D8-42CB12773657',
   RawBlock = 'F5757992-4D33-45E6-86DC-F7D7B174B1EC',
+
+  // chunk
+  RCodeChunk = 'EBFD21FF-4A6E-4D88-A2E0-B38470B00BB9',
+  BashCodeChunk = '5FBB7283-E8AB-450C-9359-A4658CBCD136',
+  D3CodeChunk = 'C73CA46C-B56F-40B6-AEFA-DDBB30CA8C08',
+  PythonCodeChunk = '42A7A138-421A-4DCF-8A88-FE2F8EC5B8F6',
+  RcppCodeChunk = '6BD2810B-6B20-4358-8AA4-74BBFFC92AC3',
+  SQLCodeChunk = '41D61FD2-B56B-48A7-99BC-2F60BC0D9F78',
+  StanCodeChunk = '65D33344-CBE9-438C-B337-A538F8D7FCE5',
+  ExecuteCurentRmdChunk = '31C799F3-EF18-4F3A-92E6-51F7A3193A1B',
+  ExecuteCurrentPreviousRmdChunks = 'D3FDE96-0264-4364-ADFF-E87A75405B0B',
+
+  // outline
+  GoToNextSection = 'AE827BDA-96F8-4E84-8030-298D98386765',
+  GoToPreviousSection = 'E6AA728C-2B75-4939-9123-0F082837ACDF'
 }
 
 export interface EditorCommand {
@@ -122,14 +148,22 @@ export interface EditorCommand {
 export class ProsemirrorCommand {
   public readonly id: EditorCommandId;
   public readonly keymap: readonly string[];
-  public readonly keepFocus: boolean;
   public readonly execute: CommandFn;
+  public readonly omniInsert?: OmniInsert;
+  public readonly keepFocus: boolean;
 
-  constructor(id: EditorCommandId, keymap: readonly string[], execute: CommandFn, keepFocus = true) {
+  constructor(
+    id: EditorCommandId,
+    keymap: readonly string[],
+    execute: CommandFn,
+    omniInsert?: OmniInsert,
+    keepFocus?: boolean,
+  ) {
     this.id = id;
     this.keymap = keymap;
-    this.keepFocus = keepFocus;
     this.execute = execute;
+    this.omniInsert = omniInsert;
+    this.keepFocus = !(keepFocus === false);
   }
 
   public isEnabled(state: EditorState): boolean {
@@ -164,8 +198,15 @@ export class NodeCommand extends ProsemirrorCommand {
   public readonly nodeType: NodeType;
   public readonly attrs: object;
 
-  constructor(id: EditorCommandId, keymap: string[], nodeType: NodeType, attrs: object, execute: CommandFn) {
-    super(id, keymap, execute);
+  constructor(
+    id: EditorCommandId,
+    keymap: string[],
+    nodeType: NodeType,
+    attrs: object,
+    execute: CommandFn,
+    omniInsert?: OmniInsert,
+  ) {
+    super(id, keymap, execute, omniInsert);
     this.nodeType = nodeType;
     this.attrs = attrs;
   }
@@ -175,32 +216,53 @@ export class NodeCommand extends ProsemirrorCommand {
   }
 }
 
-export class ListCommand extends NodeCommand {
-  constructor(id: EditorCommandId, keymap: string[], listType: NodeType, listItemType: NodeType) {
-    super(id, keymap, listType, {}, toggleList(listType, listItemType));
-  }
-}
-
 export class BlockCommand extends NodeCommand {
-  constructor(id: EditorCommandId, keymap: string[], blockType: NodeType, toggleType: NodeType, attrs = {}) {
-    super(id, keymap, blockType, attrs, toggleBlockType(blockType, toggleType, attrs));
+  constructor(
+    id: EditorCommandId,
+    keymap: string[],
+    blockType: NodeType,
+    toggleType: NodeType,
+    attrs = {},
+    omniInsert?: OmniInsert,
+  ) {
+    super(id, keymap, blockType, attrs, toggleBlockType(blockType, toggleType, attrs), omniInsert);
   }
 }
 
 export class WrapCommand extends NodeCommand {
-  constructor(id: EditorCommandId, keymap: string[], wrapType: NodeType, attrs = {}) {
-    super(id, keymap, wrapType, attrs, toggleWrap(wrapType, attrs));
+  constructor(id: EditorCommandId, keymap: string[], wrapType: NodeType, attrs = {}, omniInsert?: OmniInsert) {
+    super(id, keymap, wrapType, attrs, toggleWrap(wrapType, attrs), omniInsert);
   }
 }
 
-export type CommandFn = (state: EditorState, dispatch?: (tr: Transaction<any>) => void, view?: EditorView) => boolean;
+export class InsertCharacterCommand extends ProsemirrorCommand {
+  constructor(id: EditorCommandId, ch: string, keymap: string[]) {
+    super(
+      id,
+      keymap,
+      (state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView) => {
 
-export function toggleList(listType: NodeType, itemType: NodeType): CommandFn {
-  function isList(node: ProsemirrorNode) {
-    const schema = node.type.schema;
-    return node.type === schema.nodes.bullet_list || node.type === schema.nodes.ordered_list;
+        // enable/disable command
+        const schema = state.schema;
+        if (!canInsertNode(state, schema.nodes.text)) {
+          return false;
+        }
+        if (dispatch) {
+          const tr = state.tr;
+          tr.replaceSelectionWith(schema.text(ch), true).scrollIntoView();
+          dispatch(tr);
+        }
+
+        return true;
+      }
+    );
   }
+}
 
+
+export type CommandFn = (state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView) => boolean;
+
+export function toggleList(listType: NodeType, itemType: NodeType, prefs: EditorUIPrefs): CommandFn {
   return (state: EditorState, dispatch?: (tr: Transaction<any>) => void, view?: EditorView) => {
     const { selection } = state;
     const { $from, $to } = selection;
@@ -210,22 +272,36 @@ export function toggleList(listType: NodeType, itemType: NodeType): CommandFn {
       return false;
     }
 
-    const parentList = findParentNode(node => isList(node))(selection);
+    const parentList = findParentNode(isList)(selection);
 
     if (range.depth >= 1 && parentList && range.depth - parentList.depth <= 1) {
       if (isList(parentList.node) && listType.validContent(parentList.node.content)) {
-        const tr: Transaction = state.tr;
-        tr.setNodeMarkup(parentList.pos, listType);
-
-        if (dispatch) {
-          dispatch(tr);
+        if (parentList.node.type !== listType) {
+          if (dispatch) {
+            const tr: Transaction = state.tr;
+            const attrs: { [key: string]: any } = {};
+            if (parentList.node.attrs.tight) {
+              attrs.tight = true;
+            }
+            tr.setNodeMarkup(parentList.pos, listType, attrs);
+            dispatch(tr);
+          }
+          return true;
+        } else {
+          return liftListItem(itemType)(state, dispatch);
         }
-
-        return true;
       }
     }
 
-    return wrapInList(listType)(state, dispatch);
+    // if we are in a heading then this isn't valid
+    if (findParentNodeOfType(state.schema.nodes.heading)(state.selection)) {
+      return false;
+    }
+
+    // reflect tight preference
+    const tight = prefs.listSpacing() === kListSpacingTight;
+
+    return wrapInList(listType, { tight })(state, dispatch);
   };
 }
 

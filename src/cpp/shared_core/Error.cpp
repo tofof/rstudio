@@ -1,7 +1,7 @@
 /*
  * Error.cpp
  *
- * Copyright (C) 2009-20 by RStudio, PBC
+ * Copyright (C) 2020 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant to the terms of a commercial license agreement
  * with RStudio, then this program is licensed to you under the following terms:
@@ -36,9 +36,6 @@ namespace rstudio {
 namespace core {
 
 namespace {
-
-constexpr const char* s_errorExpected = "expected";
-constexpr const char* s_errorExpectedValue = "yes";
 
 constexpr const char* s_occurredAt = "OCCURRED AT";
 constexpr const char* s_causedBy = "CAUSED BY";
@@ -182,6 +179,7 @@ struct Error::Impl
    ErrorProperties Properties;
    Error Cause;
    ErrorLocation Location;
+   bool Expected = false;
 };
 
 // This is a shallow copy because deep copy will only be performed on a write.
@@ -423,12 +421,12 @@ std::string Error::getSummary() const
 
 bool Error::isExpected() const
 {
-   return getProperty(s_errorExpected) == s_errorExpectedValue;
+   return m_impl->Expected;
 }
 
 void Error::setExpected()
 {
-   addProperty(s_errorExpected, s_errorExpectedValue);
+   m_impl->Expected = true;
 }
 
 void Error::copyOnWrite()
@@ -461,7 +459,7 @@ std::ostream& operator<<(std::ostream& io_ostream, const Error& in_error)
 // Common error creation functions =====================================================================================
 Error systemError(int in_code, const ErrorLocation& in_location)
 {
-   using namespace boost::system ;
+   using namespace boost::system;
    return Error(error_code(in_code, system_category()), in_location);
 }
 
@@ -479,7 +477,7 @@ Error systemError(int in_code,
                   const Error& in_cause,
                   const ErrorLocation& in_location)
 {
-   using namespace boost::system ;
+   using namespace boost::system;
    return Error(error_code(in_code, system_category()), in_cause, in_location);
 }
 
@@ -573,6 +571,32 @@ Error unknownError(const std::string& in_message, const Error& in_cause, const E
       in_cause,
       in_location);
 }
+
+// return an error description (either the description property or a message)
+std::string errorDescription(const Error& error)
+{
+   std::string description = error.getProperty("description");
+   if (description.empty())
+      description = errorMessage(error);
+   return description;
+}
+
+// return a printable error message from an error (depending on the error this
+// might require consulting the message, category, or name)
+std::string errorMessage(const core::Error& error)
+{
+   std::string msg = error.getMessage();
+   if (msg.length() == 0)
+   {
+      msg = error.getProperty("category");
+   }
+   if (msg.length() == 0)
+   {
+      msg = error.getName();
+   }
+   return msg;
+}
+
 
 } // namespace core 
 } // namespace rstudio

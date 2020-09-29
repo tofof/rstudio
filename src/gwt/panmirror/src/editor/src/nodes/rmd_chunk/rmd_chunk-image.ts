@@ -1,7 +1,7 @@
 /*
  * rmd_chunk-image.ts
  *
- * Copyright (C) 2019-20 by RStudio, PBC
+ * Copyright (C) 2020 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -22,12 +22,12 @@ import { findChildrenByType, setTextSelection } from 'prosemirror-utils';
 import { transactionsAreTypingChange, transactionsHaveChange } from '../../api/transaction';
 import { EditorUIContext } from '../../api/ui';
 import { stripQuotes } from '../../api/text';
+import { onElementRemoved } from '../../api/dom';
 
 const key = new PluginKey<DecorationSet>('rmd-chunk-image-preview');
 
 export class RmdChunkImagePreviewPlugin extends Plugin<DecorationSet> {
   constructor(uiContext: EditorUIContext) {
-  
     super({
       key,
       state: {
@@ -35,7 +35,6 @@ export class RmdChunkImagePreviewPlugin extends Plugin<DecorationSet> {
           return imagePreviewDecorations(state, uiContext);
         },
         apply: (tr: Transaction, old: DecorationSet, oldState: EditorState, newState: EditorState) => {
-          
           const transactions = [tr];
 
           // doc didn't change, return existing decorations
@@ -66,40 +65,50 @@ export class RmdChunkImagePreviewPlugin extends Plugin<DecorationSet> {
   }
 }
 
-
 function imagePreviewDecorations(state: EditorState, uiContext: EditorUIContext) {
-
   // find all rmd code chunks with knitr::include_graphics
   const decorations: Decoration[] = [];
   findChildrenByType(state.doc, state.schema.nodes.rmd_chunk).forEach(rmdChunk => {
-
     // look for a line with knitr::include_graphics
     const match = rmdChunk.node.textContent.match(/^(knitr::)?include_graphics\((['"])([^\2]+)\2/m);
     if (match) {
-
       // see if we can also find an out.width on the first line
       let width = '';
       const firstLine = rmdChunk.node.textContent.split(/\r?\n/)[0];
-      const widthMatch = firstLine.match(/^\s*[r|R][, ].*out\.width\s*=\s*([^ ,$]+)/);
+      const widthMatch = firstLine.match(/^\s*\{[r|R][, ].*out\.width\s*=\s*([^ ,$]+).*}/);
       if (widthMatch) {
         width = stripQuotes(widthMatch[1].trim());
         // revert if they are using out.width = NULL
-        if (width === "NULL") {
+        if (width === 'NULL') {
           width = '';
         }
       }
 
+      // see if we can find fig.align='center'
+      const alignCenter = !!firstLine.match(/^\s*\{[r|R][, ].*fig\.align\s*=\s*['"]?center['"]?/);
+
       const imagePath = match[3];
       const decoration = Decoration.widget(
-        rmdChunk.pos + rmdChunk.node.nodeSize, 
+        rmdChunk.pos + rmdChunk.node.nodeSize,
         (view: EditorView, getPos: () => number) => {
           const container = window.document.createElement('div');
-          container.style.marginTop = '-1em'; // to bridge back to the codemirror block
-                                              // which has a margin-block-end of 1em
+          container.style.marginTop = '-1.5em'; // to bridge back to the codemirror block
+          // which has a margin-block-end of 1em
           container.classList.add('pm-image-preview');
           container.classList.add('pm-block-border-color');
           const img = window.document.createElement('img');
-          img.src = uiContext.mapResourcePath(imagePath);
+          if (alignCenter) {
+            img.classList.add('pm-image-centered');
+          }
+
+          img.src = uiContext.mapResourceToURL(imagePath);
+
+          // watch for changes to the file
+          const unsubscribe = uiContext.watchResource(imagePath, () => {
+            img.src = uiContext.mapResourceToURL(imagePath);
+          });
+          onElementRemoved(view.dom, container, unsubscribe);
+
           if (width) {
             img.setAttribute('width', width);
           }
@@ -118,8 +127,8 @@ function imagePreviewDecorations(state: EditorState, uiContext: EditorUIContext)
           };
           container.append(img);
           return container;
-        }, 
-        { key: imagePath }
+        },
+        { key: imagePath + 'width:' + width + 'center:' + alignCenter },
       );
       decorations.push(decoration);
     }
@@ -129,12 +138,6 @@ function imagePreviewDecorations(state: EditorState, uiContext: EditorUIContext)
   return DecorationSet.create(state.doc, decorations);
 }
 
-
 function isRmdChunkNode(node: ProsemirrorNode) {
   return node.type === node.type.schema.nodes.rmd_chunk;
 }
-
-
-
-
-

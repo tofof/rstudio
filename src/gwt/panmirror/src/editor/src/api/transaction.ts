@@ -1,7 +1,7 @@
 /*
  * transaction.ts
  *
- * Copyright (C) 2019-20 by RStudio, PBC
+ * Copyright (C) 2020 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -16,14 +16,18 @@
 import { Transaction, EditorState, Plugin, PluginKey, Selection } from 'prosemirror-state';
 import { Node as ProsemirrorNode, Mark, MarkType, Slice } from 'prosemirror-model';
 import { ChangeSet } from 'prosemirror-changeset';
-import { ReplaceStep, Step, Transform, MapResult } from 'prosemirror-transform';
+import { ReplaceStep, Step, Transform } from 'prosemirror-transform';
 
 import { sliceContentLength } from './slice';
 
+export const kPasteTransaction = 'paste';
 export const kSetMarkdownTransaction = 'setMarkdown';
 export const kAddToHistoryTransaction = 'addToHistory';
 export const kFixupTransaction = 'docFixup';
 export const kRestoreLocationTransaction = 'restoreLocation';
+export const kNavigationTransaction = 'navigationTransaction';
+export const kInsertSymbolTransaction = 'insertSymbol';
+export const kInsertCompletionTransaction = 'insertCompletion';
 
 export type TransactionsFilter = (transactions: Transaction[], oldState: EditorState, newState: EditorState) => boolean;
 
@@ -38,24 +42,49 @@ export interface AppendTransactionHandler {
   name: string;
   filter?: TransactionsFilter;
   nodeFilter?: TransactionNodeFilter;
-  append: (tr: Transaction) => void;
+  append: (tr: Transaction, transactions: Transaction[], oldState: EditorState, newState: EditorState) => void;
 }
 
-export interface MarkTransaction {
-  doc: ProsemirrorNode;
-  selection: Selection;
-  addMark(from: number, to: number, mark: Mark): this;
-  removeMark(from: number, to: number, mark?: Mark | MarkType): this;
-  removeStoredMark(mark: Mark | MarkType): this;
+// wrapper for transaction that is guaranteed not to modify the position of any
+// nodes in the document (useful for grouping many disparate handlers that arne't
+// aware of each other's actions onto the same trasaction)
+export class MarkTransaction {
+  private tr: Transaction;
+
+  constructor(tr: Transaction) {
+    this.tr = tr;
+  }
+  get doc(): ProsemirrorNode {
+    return this.tr.doc;
+  }
+  get selection(): Selection {
+    return this.tr.selection;
+  }
+  public addMark(from: number, to: number, mark: Mark): this {
+    this.tr.addMark(from, to, mark);
+    return this;
+  }
+  public removeMark(from: number, to: number, mark?: Mark | MarkType): this {
+    this.tr.removeMark(from, to, mark);
+    return this;
+  }
+  public removeStoredMark(mark: Mark | MarkType): this {
+    this.tr.removeStoredMark(mark);
+    return this;
+  }
+  public insertText(text: string, from: number): this {
+    this.tr.insertText(text, from, from + text.length);
+    return this;
+  }
 }
 
 export interface AppendMarkTransactionHandler {
   name: string;
   filter: (node: ProsemirrorNode) => boolean;
-  append: (tr: MarkTransaction, node: ProsemirrorNode, pos: number) => void;
+  append: (tr: MarkTransaction, node: ProsemirrorNode, pos: number, state: EditorState) => void;
 }
 
-export function appendMarkTransactionsPlugin(handlers: AppendMarkTransactionHandler[]): Plugin {
+export function appendMarkTransactionsPlugin(handlers: readonly AppendMarkTransactionHandler[]): Plugin {
   return new Plugin({
     key: new PluginKey('appendMarkTransactions'),
 
@@ -68,6 +97,9 @@ export function appendMarkTransactionsPlugin(handlers: AppendMarkTransactionHand
       // create transaction
       const tr = newState.tr;
 
+      // create markTransaction wrapper
+      const markTr = new MarkTransaction(tr);
+
       forChangedNodes(
         oldState,
         newState,
@@ -79,21 +111,21 @@ export function appendMarkTransactionsPlugin(handlers: AppendMarkTransactionHand
 
             // call the handler
             if (handler.filter(node)) {
-              handler.append(tr, node, pos);
+              handler.append(markTr, node, pos, newState);
             }
           }
         },
       );
 
       // return transaction
-      if (tr.docChanged || tr.selectionSet) {
+      if (tr.docChanged || tr.selectionSet || tr.storedMarksSet) {
         return tr;
       }
     },
   });
 }
 
-export function appendTransactionsPlugin(handlers: AppendTransactionHandler[]): Plugin {
+export function appendTransactionsPlugin(handlers: readonly AppendTransactionHandler[]): Plugin {
   return new Plugin({
     key: new PluginKey('appendTransactions'),
 
@@ -149,17 +181,17 @@ export function appendTransactionsPlugin(handlers: AppendTransactionHandler[]): 
 
           // run the handler if applicable
           if (haveChange) {
-            handler.append(tr);
+            handler.append(tr, transactions, oldState, newState);
           }
         }
 
         // run them all if this is a larger change
       } else {
-        handlers.forEach(handler => handler.append(tr));
+        handlers.forEach(handler => handler.append(tr, transactions, oldState, newState));
       }
 
       // return transaction
-      if (tr.docChanged || tr.selectionSet) {
+      if (tr.docChanged || tr.selectionSet || tr.storedMarksSet) {
         return tr;
       }
     },
@@ -178,18 +210,14 @@ export function transactionsChangeSet(transactions: Transaction[], oldState: Edi
   return changeSet;
 }
 
-export type MappingFn = (pos: number, assoc?: number | undefined) => MapResult;
-
-export function withScopedMapping(tr: Transaction, f: (map: MappingFn) => void) : Transaction {
+export function trTransform(tr: Transaction, f: (transform: Transform) => void): Transaction {
   // create a new transform so we can do position mapping relative
   // to the actions taken here (b/c the transaction might already
   // have other steps so we can't do tr.mapping.map)
   const newActions = new Transform(tr.doc);
 
   // call the function (passing it a mapping function that uses our newActions)
-  f((pos: number, assoc?: number | undefined) => {
-    return newActions.mapping.mapResult(pos, assoc);
-  });
+  f(newActions);
 
   // copy the contents of newActions to the actual transaction
   for (const step of newActions.steps) {
