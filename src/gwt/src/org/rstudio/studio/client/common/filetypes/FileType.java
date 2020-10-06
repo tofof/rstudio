@@ -49,10 +49,19 @@ public abstract class FileType
                         int navMethod,
                         EventBus eventBus)
    {
-      openFile(file, null, navMethod, eventBus);
+      openFile(file, position, navMethod, eventBus, false);
+   }
+
+   public void openFile(FileSystemItem file,
+                        FilePosition position,
+                        int navMethod,
+                        EventBus eventBus,
+                        boolean newColumn)
+   {
+      openFile(file, null, navMethod, eventBus, newColumn);
    }
    
-   protected abstract void openFile(FileSystemItem file, EventBus eventBus);
+   protected abstract void openFile(FileSystemItem file, EventBus eventBus, boolean newColumn);
    protected abstract FileIcon getDefaultFileIcon();
    
    private final String id_;

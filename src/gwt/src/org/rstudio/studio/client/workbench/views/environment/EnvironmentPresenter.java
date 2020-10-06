@@ -316,6 +316,7 @@ public class EnvironmentPresenter extends BasePresenter
                   pos,
                   fileTypeRegistry_.getTextTypeForFile(destFile),
                   event.getMoveCursor(),
+                  false,
                   NavigationMethods.DEFAULT));
             }
          }

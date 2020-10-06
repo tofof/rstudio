@@ -27,7 +27,7 @@ public class CodeBrowserType extends EditableFileType
    }
 
    @Override
-   public void openFile(FileSystemItem file, EventBus eventBus)
+   public void openFile(FileSystemItem file, EventBus eventBus, boolean newColumn)
    {
       assert false : "CodeBrowserType doesn't operate on filesystem files";
    }

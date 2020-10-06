@@ -28,7 +28,7 @@ public class ObjectExplorerFileType extends EditableFileType
    }
 
    @Override
-   protected void openFile(FileSystemItem file, EventBus eventBus)
+   protected void openFile(FileSystemItem file, EventBus eventBus, boolean newColumn)
    {
       assert false :
          "Object explorer doesn't operate on filesystem files";

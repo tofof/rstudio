@@ -820,7 +820,10 @@ public class Source implements InsertSourceHandler,
             @Override
             public void onResponseReceived(SourceDocument response)
             {
-               columnManager_.addTab(response, OPEN_INTERACTIVE, null);
+               if (event.getNewColumn())
+                  columnManager_.addTabInNewColumn(response, OPEN_INTERACTIVE);
+               else
+                  columnManager_.addTab(response, OPEN_INTERACTIVE, null);
             }
 
             @Override
@@ -846,7 +849,10 @@ public class Source implements InsertSourceHandler,
                @Override
                public void onResponseReceived(SourceDocument response)
                {
-                  columnManager_.addTab(response, OPEN_INTERACTIVE, null);
+                  if (event.getNewColumn())
+                     columnManager_.addTabInNewColumn(response, OPEN_INTERACTIVE);
+                  else
+                     columnManager_.addTab(response, OPEN_INTERACTIVE, null);
                }
 
                @Override
@@ -1845,7 +1851,8 @@ public class Source implements InsertSourceHandler,
             null,
             event.getNavigationMethod(),
             false,
-            event.getMoveCursor());
+            event.getMoveCursor(),
+            event.getNewColumn());
    }
 
    public void onOpenPresentationSourceFile(OpenPresentationSourceFileEvent event)
@@ -1859,7 +1866,8 @@ public class Source implements InsertSourceHandler,
                        event.getPattern(),
                        NavigationMethods.HIGHLIGHT_LINE,
                        true,
-                       true);
+                       true,
+                       false);
 
    }
 
@@ -1921,7 +1929,8 @@ public class Source implements InsertSourceHandler,
                                  final String pattern,
                                  final int navMethod,
                                  final boolean forceHighlightMode,
-                                 final boolean moveCursor)
+                                 final boolean moveCursor,
+                                 final boolean newColumn)
    {
       // if the navigation should happen in another window, do that instead
       NavigationResult navResult =
@@ -2061,7 +2070,10 @@ public class Source implements InsertSourceHandler,
             @Override
             public void onResponseReceived(final SourceDocument doc)
             {
-               editingTargetAction.execute(columnManager_.addTab(doc, OPEN_REPLAY, null));
+               if (newColumn)
+                  editingTargetAction.execute(columnManager_.addTabInNewColumn(doc, OPEN_REPLAY));
+               else
+                  editingTargetAction.execute(columnManager_.addTab(doc, OPEN_REPLAY, null));
             }
 
             @Override
@@ -2085,6 +2097,7 @@ public class Source implements InsertSourceHandler,
 
             columnManager_.openFile(file,
                      fileType,
+                     newColumn,
                      (target) -> {
                         columnManager_.setOpeningForSourceNavigation(false);
                         editingTargetAction.execute(target);

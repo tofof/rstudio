@@ -26,7 +26,7 @@ public class RProjectType extends FileType
    }
 
    @Override
-   public void openFile(FileSystemItem file, EventBus eventBus)
+   public void openFile(FileSystemItem file, EventBus eventBus, boolean newColumn)
    {
       eventBus.fireEvent(new OpenProjectFileEvent(file));
    }

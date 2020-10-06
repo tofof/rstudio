@@ -460,15 +460,21 @@ public class FileTypeRegistry
 
    public void openFile(FileSystemItem file)
    {
-      openFile(file, true);
+      openFile(file, true, false);
    }
 
    public void openFile(final FileSystemItem file, final boolean canUseBrowser)
    {
+      openFile(file, canUseBrowser, false);
+   }
+   
+   public void openFile(final FileSystemItem file, final boolean canUseBrowser,
+                        final boolean newColumn)
+   {
       FileType fileType = getTypeForFile(file);
       if (fileType != null)
       {
-         fileType.openFile(file, eventBus_);
+         fileType.openFile(file, eventBus_, newColumn);
       }
       else
       {
@@ -482,7 +488,7 @@ public class FileTypeRegistry
                {
                   if (session_.getSessionInfo().getAllowFileDownloads())
                   {
-                     BROWSER.openFile(file, eventBus_);
+                     BROWSER.openFile(file, eventBus_, newColumn);
                   }
                   else
                   {
@@ -502,7 +508,7 @@ public class FileTypeRegistry
             public void onResponseReceived(Boolean isText)
             {
                if (isText)
-                  TEXT.openFile(file, eventBus_);
+                  TEXT.openFile(file, eventBus_, newColumn);
                else
                   defaultCommand.execute();
             }

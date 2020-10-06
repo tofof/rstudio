@@ -100,7 +100,14 @@ public class FilesPane extends WorkbenchPane implements Files.Display
          if (observer_ != null)
             observer_.onFileNavigation(file);
       }
-      
+
+      @Override
+      public void onFileNavigationOpenNewColumn(FileSystemItem file)
+      {
+         if (observer_ != null)
+            observer_.onFileNavigationOpenNewColumn(file);
+      }
+
       public void onSelectAllValueChanged(boolean value)
       {
          if (observer_ != null)

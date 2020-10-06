@@ -27,7 +27,7 @@ public class UrlContentType extends EditableFileType
    }
 
    @Override
-   public void openFile(FileSystemItem file, EventBus eventBus)
+   public void openFile(FileSystemItem file, EventBus eventBus, boolean newColumn)
    {
       assert false : "urlcontent doesn't apply to filesystem files";
    }

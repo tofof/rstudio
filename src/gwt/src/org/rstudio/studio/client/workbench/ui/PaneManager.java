@@ -57,6 +57,7 @@ import org.rstudio.studio.client.application.events.EventBus;
 import org.rstudio.studio.client.application.ui.RStudioThemes;
 import org.rstudio.studio.client.common.GlobalDisplay;
 import org.rstudio.studio.client.workbench.commands.Commands;
+import org.rstudio.studio.client.workbench.events.NewSourceColumnEvent;
 import org.rstudio.studio.client.workbench.events.ZoomPaneEvent;
 import org.rstudio.studio.client.workbench.model.ClientState;
 import org.rstudio.studio.client.workbench.model.Session;
@@ -455,6 +456,26 @@ public class PaneManager
          }
       });
 
+      eventBus.addHandler(NewSourceColumnEvent.TYPE, new NewSourceColumnEvent.Handler()
+      {
+         @Override
+         public void onNewSourceColumn(NewSourceColumnEvent event)
+         {
+            SourceColumn column = event.getColumn();
+            if (validateNewColumnRequest(false))
+            {
+               Widget panel = createSourceColumnWindow(column.getName(), column.getAccessibleName());
+               panel_.addLeftWidget(panel);
+               sourceColumnManager.setActive(column);
+               additionalSourceCount_++;
+            }
+            else
+            {
+               sourceColumnManager_.closeColumn(column.getName());
+            }
+         }
+      });
+      
       // highlight pane containing keyboard focus
       DomGlobal.document.addEventListener("focusin", (Event) ->
       {
@@ -677,14 +698,14 @@ public class PaneManager
    @Handler
    public void onNewSourceColumn()
    {
-      if (validateNewColumnRequest())
+      if (validateNewColumnRequest(true))
          createAndDisplaySourceColumn();
    }
    
    @Handler
    public void onOpenSourceDocNewColumn()
    {
-      if (validateNewColumnRequest())
+      if (validateNewColumnRequest(true))
       {
          ColumnName name = createSourceColumn();
          SourceColumn column = sourceColumnManager_.getByName(name.getName());
@@ -703,18 +724,20 @@ public class PaneManager
       }
    }
 
-   private boolean validateNewColumnRequest()
+   private boolean validateNewColumnRequest(boolean showMessage)
    {
       if (!userPrefs_.allowSourceColumns().getValue())
       {
-         pGlobalDisplay_.get().showMessage(GlobalDisplay.MSG_INFO, "Cannot Add Column",
-            "Allow Source Columns preference is disabled.");
+         if (showMessage)
+            pGlobalDisplay_.get().showMessage(GlobalDisplay.MSG_INFO, "Cannot Add Column",
+               "Allow Source Columns preference is disabled.");
          return false;
       }
       else if (additionalSourceCount_ >= MAX_COLUMN_COUNT)
       {
-         pGlobalDisplay_.get().showMessage(GlobalDisplay.MSG_INFO, "Cannot Add Column",
-            "You can't add more than " + MAX_COLUMN_COUNT + " columns.");
+         if (showMessage)
+            pGlobalDisplay_.get().showMessage(GlobalDisplay.MSG_INFO, "Cannot Add Column",
+              "You can't add more than " + MAX_COLUMN_COUNT + " columns.");
          return false;
       }
       return true;

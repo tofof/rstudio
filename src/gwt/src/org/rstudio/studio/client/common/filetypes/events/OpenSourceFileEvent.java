@@ -51,19 +51,21 @@ public class OpenSourceFileEvent extends CrossWindowEvent<OpenSourceFileHandler>
                               TextFileType fileType,
                               int navMethod)
    {
-      this(file, position, fileType, true, navMethod);
+      this(file, position, fileType, true, false, navMethod);
    }
-
+   
    public OpenSourceFileEvent(FileSystemItem file,
                               FilePosition position,
                               TextFileType fileType,
                               boolean moveCursor,
+                              boolean newColumn,
                               int navMethod)
    {
       file_ = file;
       position_ = position;
       fileType_ = fileType;
       moveCursor_ = moveCursor;
+      newColumn_ = newColumn;
       navigationMethod_ = navMethod;
    }
 
@@ -96,6 +98,11 @@ public class OpenSourceFileEvent extends CrossWindowEvent<OpenSourceFileHandler>
       return moveCursor_;
    }
 
+   public boolean getNewColumn()
+   {
+      return newColumn_;
+   }
+   
    public FilePosition getPosition()
    {
       return position_;
@@ -122,5 +129,6 @@ public class OpenSourceFileEvent extends CrossWindowEvent<OpenSourceFileHandler>
    private FilePosition position_;
    private TextFileType fileType_;
    private boolean moveCursor_;
+   private boolean newColumn_;
    private int navigationMethod_;
 }

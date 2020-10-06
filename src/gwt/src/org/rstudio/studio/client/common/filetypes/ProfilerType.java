@@ -37,16 +37,17 @@ public class ProfilerType extends EditableFileType
    public void openFile(FileSystemItem file,
                         FilePosition position,
                         int navMethod,
-                        EventBus eventBus)
+                        EventBus eventBus,
+                        boolean newColumn)
    {
       eventBus.fireEvent(new OpenProfileEvent(
-            file.getPath(), null, null, false, null));
+            file.getPath(), null, null, false, null, newColumn));
    }
    
    @Override
-   public void openFile(FileSystemItem file, EventBus eventBus)
+   public void openFile(FileSystemItem file, EventBus eventBus, boolean newColumn)
    {
-      openFile(file, null, NavigationMethods.DEFAULT, eventBus);
+      openFile(file, null, NavigationMethods.DEFAULT, eventBus, newColumn);
    }
 
    public HashSet<AppCommand> getSupportedCommands(Commands commands)

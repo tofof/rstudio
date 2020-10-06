@@ -194,7 +194,16 @@ public class FilesList extends Composite
             {
                observer_.onFileNavigation(input);
             }
-         })
+         },
+         new OperationWithInput<FileSystemItem>()
+         {
+            @Override
+            public void execute(FileSystemItem input)
+            {
+               observer_.onFileNavigationOpenNewColumn(input);
+            }
+         }
+      )
          {
             @Override
             public String getValue(FileSystemItem item)

@@ -77,6 +77,7 @@ public class Files
       public interface NavigationObserver
       {
          void onFileNavigation(FileSystemItem file);
+         void onFileNavigationOpenNewColumn(FileSystemItem file);
          void onSelectAllValueChanged(boolean value);
       }
       
@@ -312,7 +313,20 @@ public class Files
             navigateToFile(file);
          }
       }
-      
+
+      @Override
+      public void onFileNavigationOpenNewColumn(FileSystemItem file)
+      {
+         if (file.isDirectory())
+         {
+            navigateToDirectory(file);
+         }
+         else
+         {
+            navigateToFile(file, true);
+         }
+      }
+
       public void onSelectAllValueChanged(boolean value)
       {
          if (value)
@@ -644,6 +658,11 @@ public class Files
 
    private void navigateToFile(final FileSystemItem file)
    {
+      navigateToFile(file, false);
+   }
+
+   private void navigateToFile(final FileSystemItem file, boolean newColumn)
+   {
       final String ext = file.getExtension().toLowerCase();
       if (ext.equals(".htm") || ext.equals(".html") || ext.equals(".nb.html"))
       {
@@ -654,7 +673,7 @@ public class Files
                @Override
                public void execute()
                {
-                  fileTypeRegistry_.openFile(file);
+                  fileTypeRegistry_.openFile(file, true, newColumn);
                }
             },
             new Command() {
@@ -678,7 +697,7 @@ public class Files
                @Override
                public void execute()
                {
-                  fileTypeRegistry_.openFile(file);
+                  fileTypeRegistry_.openFile(file, true, newColumn);
                }
             },
             new Command() {
@@ -700,7 +719,7 @@ public class Files
       }
       else
       {
-         fileTypeRegistry_.openFile(file);
+         fileTypeRegistry_.openFile(file, true, newColumn);
       }
       
    }

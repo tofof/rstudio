@@ -37,11 +37,19 @@ public abstract class LinkColumn<T> extends Column<T, String>
    public LinkColumn(ListDataProvider<T> dataProvider,
                      OperationWithInput<T> onClicked)
    {
-      this(dataProvider, onClicked, false);
+      this(dataProvider, onClicked, null, false);
    }
 
+   public LinkColumn(ListDataProvider<T> dataProvider,
+                     OperationWithInput<T> onClicked,
+                     OperationWithInput<T> onShiftClicked)
+   {
+      this(dataProvider, onClicked, onShiftClicked, false);
+   }
+   
    public LinkColumn(final ListDataProvider<T> dataProvider,
                      final OperationWithInput<T> onClicked,
+                     final OperationWithInput<T> onShiftClicked,
                      final boolean alwaysUnderline)
    {
       super(new ClickableTextCell(){
@@ -88,7 +96,12 @@ public abstract class LinkColumn<T> extends Column<T, String>
               {
                  int idx = context.getIndex();
                  if (idx >= 0 && idx < dataProvider.getList().size())
-                    onClicked.execute(dataProvider.getList().get(idx));
+                 {
+                    if (event.getShiftKey() && onShiftClicked != null)
+                       onShiftClicked.execute(dataProvider.getList().get(idx));
+                    else
+                       onClicked.execute(dataProvider.getList().get(idx));
+                 }
               }
            }
          }

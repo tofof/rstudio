@@ -129,7 +129,8 @@ public class ProfilerPresenter implements RprofEvent.Handler
                event.getData().getHtmlPath(),
                event.getData().getHtmlLocalPath(),
                true,
-               currentDocId_));
+               currentDocId_,
+               false));
             currentDocId_ = null;
             break;
          default:

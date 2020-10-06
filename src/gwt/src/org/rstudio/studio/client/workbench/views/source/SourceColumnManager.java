@@ -61,6 +61,7 @@ import org.rstudio.studio.client.server.ServerRequestCallback;
 import org.rstudio.studio.client.server.VoidServerRequestCallback;
 import org.rstudio.studio.client.workbench.FileMRUList;
 import org.rstudio.studio.client.workbench.commands.Commands;
+import org.rstudio.studio.client.workbench.events.NewSourceColumnEvent;
 import org.rstudio.studio.client.workbench.model.ClientState;
 import org.rstudio.studio.client.workbench.model.Session;
 import org.rstudio.studio.client.workbench.model.UnsavedChangesTarget;
@@ -720,6 +721,20 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
          sourceNavigationHistory_.isForwardEnabled());
    }
 
+   public EditingTarget addTabInNewColumn(SourceDocument doc, int mode)
+   {
+      ColumnName name = add();
+      SourceColumn col = getByName(name.getName());
+
+      col.incrementNewTabPending();
+      events_.fireEvent(new NewSourceColumnEvent(col));
+
+      EditingTarget target = addTab(doc, mode, col);
+      col.decrementNewTabPending();
+
+      return target;
+   }
+   
    public EditingTarget addTab(SourceDocument doc, int mode, SourceColumn column)
    {
       if (column == null)
@@ -1624,6 +1639,7 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
    {
       openFile(file,
          fileType,
+         false,
          new CommandWithArg<EditingTarget>()
          {
             @Override
@@ -1638,8 +1654,16 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
                         final TextFileType fileType,
                         final CommandWithArg<EditingTarget> executeOnSuccess)
    {
+      openFile(file, fileType, false, executeOnSuccess);
+   }
+   
+   public void openFile(final FileSystemItem file,
+                        final TextFileType fileType,
+                        final boolean newColumn,
+                        final CommandWithArg<EditingTarget> executeOnSuccess)
+   {
       // add this work to the queue
-      openFileQueue_.add(new OpenFileEntry(file, fileType, executeOnSuccess));
+      openFileQueue_.add(new OpenFileEntry(file, fileType, newColumn, executeOnSuccess));
 
       // begin queue processing if it's the only work in the queue
       if (openFileQueue_.size() == 1)
@@ -1687,7 +1711,7 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
             String doc = openDocs.get(i);
             final FileSystemItem fsi = FileSystemItem.createFile(doc);
 
-            openCommands.addCommand(new SerializedCommand()
+         openCommands.addCommand(new SerializedCommand()
             {
 
                @Override
@@ -1695,6 +1719,7 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
                {
                   openFile(fsi,
                      fileTypeRegistry_.getTextTypeForFile(fsi),
+                     false,
                      new CommandWithArg<EditingTarget>()
                      {
                         @Override
@@ -1787,6 +1812,7 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
       openFile(
          entry.file,
          entry.fileType,
+         entry.newColumn,
          new ResultCallback<EditingTarget, ServerError>()
          {
             @Override
@@ -1830,9 +1856,16 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
    public void openFile(FileSystemItem file,
                         final ResultCallback<EditingTarget, ServerError> resultCallback)
    {
-      openFile(file, fileTypeRegistry_.getTextTypeForFile(file), resultCallback);
+      openFile(file, fileTypeRegistry_.getTextTypeForFile(file), false, resultCallback);
    }
 
+   public void openFile(final FileSystemItem file,
+                        final TextFileType fileType,
+                        final ResultCallback<EditingTarget, ServerError> resultCallback)
+   {
+      openFile(file, fileType, false, resultCallback);
+   }
+   
    // top-level wrapper for opening files. takes care of:
    //  - making sure the view is visible
    //  - checking whether it is already open and re-selecting its tab
@@ -1842,8 +1875,17 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
    //    via the call to the lower level openFile method
    public void openFile(final FileSystemItem file,
                         final TextFileType fileType,
+                        final boolean newColumn,
                         final ResultCallback<EditingTarget, ServerError> resultCallback)
    {
+      // save this in case the operation fails and we've added a column that needs to be removed
+      final ColumnName newColumnName = newColumn ? add() : null;
+      if (newColumn)
+      {
+         activeColumn_ = getByName(newColumnName.getName());
+         activeColumn_.incrementNewTabPending();
+      }
+      
       activeColumn_.ensureVisible(true);
 
       if (fileType.isRNotebook())
@@ -1884,6 +1926,11 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
                // user (wisely) cancelled
                if (resultCallback != null)
                   resultCallback.onCancelled();
+               
+               if (newColumn)
+               {
+                  closeColumn(newColumnName.getName());
+               }
             }
          });
       }
@@ -1891,6 +1938,8 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
       {
          openFileFromServer(file, fileType, resultCallback);
       }
+      if (newColumn)
+         events_.fireEvent(new NewSourceColumnEvent(getByName(newColumnName.getName())));
    }
 
    public void openNotebook(
@@ -2616,15 +2665,17 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
 
    private static class OpenFileEntry
    {
-      public OpenFileEntry(FileSystemItem fileIn, TextFileType fileTypeIn,
+      public OpenFileEntry(FileSystemItem fileIn, TextFileType fileTypeIn, boolean newColumnIn,
             CommandWithArg<EditingTarget> executeIn)
       {
          file = fileIn;
          fileType = fileTypeIn;
+         newColumn = newColumnIn;
          executeOnSuccess = executeIn;
       }
       public final FileSystemItem file;
       public final TextFileType fileType;
+      public final boolean newColumn;
       public final CommandWithArg<EditingTarget> executeOnSuccess;
    }
 

@@ -625,6 +625,7 @@ public class PackagesPane extends WorkbenchPane implements Packages.Display
                      }
                   }
                },
+               null,
                false);
       }
       
