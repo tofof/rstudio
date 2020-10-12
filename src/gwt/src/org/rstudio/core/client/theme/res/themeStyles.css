@@ -164,6 +164,8 @@
 
 @url TOOLBARBACKGROUND toolbarBackground;
 @url TOOLBARBACKGROUND2 toolbarBackground2;
+@url TOOLBARSEPARATOR toolbarSeparator;
+@url TOOLBARSEPARATOR_DARK toolbarSeparatorDark;
 @url DESKTOPGLOBALTOOLBARBACKGROUND desktopGlobalToolbarBackground;
 @url WEBGLOBALTOOLBARLEFT webGlobalToolbarLeft;
 @url WEBGLOBALTOOLBARRIGHT webGlobalToolbarRight;
@@ -1410,6 +1412,7 @@ body.windows .toolbar {
 
 .toolbarSeparator {
    margin-right: 5px;
+   background-image: TOOLBARSEPARTOR;
 }
 
 .rstudio-themes-flat .rstudio-themes-dark .toolbar,
@@ -1428,16 +1431,7 @@ body.windows .toolbar {
 }
 
 .rstudio-themes-flat .rstudio-themes-dark .toolbarSeparator {
-   -webkit-filter: invert(100%);
-      -moz-filter: invert(100%);
-       -ms-filter: invert(100%);
-        -o-filter: invert(100%);
-           filter: invert(100%);
-   -webkit-transform: scaleX(-1);
-      -moz-transform: scaleX(-1);
-       -ms-transform: scaleX(-1);
-        -o-transform: scaleX(-1);
-           transform: scaleX(-1);
+   background-image: TOOLBARSEPARATOR_DARK;
 }
 
 .toolbarFileLabel {

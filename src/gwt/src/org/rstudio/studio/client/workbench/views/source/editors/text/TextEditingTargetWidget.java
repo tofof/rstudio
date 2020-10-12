@@ -575,11 +575,16 @@ public class TextEditingTargetWidget
          toolbar.addRightWidget(publishButton_);
       }
 
+      ImageResource2x imageResource = userState_.theme().getValue().getIsDark() ?
+         new ImageResource2x(StandardIcons.INSTANCE.outlineDark2x()) :
+         new ImageResource2x(StandardIcons.INSTANCE.outline2x());
+      
+      if (userState_.theme().getValue().getIsDark())
       toggleDocOutlineButton_ = new LatchingToolbarButton(
             ToolbarButton.NoText,
             ToolbarButton.NoTitle,
             true, /* textIndicatesState */
-            new ImageResource2x(StandardIcons.INSTANCE.outline2x()),
+            imageResource,
             event -> {
                final double initialSize = editorPanel_.getWidgetSize(docOutlineWidget_);
 
@@ -622,8 +627,6 @@ public class TextEditingTargetWidget
                   }
                }.run(duration);
             });
-
-      toggleDocOutlineButton_.addStyleName("rstudio-themes-inverts");
 
       // Time-out setting the latch just to ensure the document outline
       // has actually been appropriately rendered.
@@ -670,11 +673,15 @@ public class TextEditingTargetWidget
 
    private ToolbarButton createVisualModeToggleButton()
    {
+      ImageResource2x imageResource = userState_.theme().getValue().getIsDark() ?
+         new ImageResource2x(StandardIcons.INSTANCE.visual_mode_dark2x()) :
+         new ImageResource2x(StandardIcons.INSTANCE.visual_mode2x());
       toggleRmdVisualModeButton_ = new LatchingToolbarButton(
          ToolbarButton.NoText,
          commands_.toggleRmdVisualMode().getTooltip(),
          false, /* textIndicatesState */
-         new ImageResource2x(StandardIcons.INSTANCE.visual_mode2x()), event -> {
+         imageResource,
+         event -> {
             boolean visible = !isVisualMode();
             target_.recordCurrentNavigationPosition();
             docUpdateSentinel_.setBoolProperty(TextEditingTarget.RMD_VISUAL_MODE, visible);
@@ -688,7 +695,6 @@ public class TextEditingTargetWidget
             findReplace_.hideFindReplace();
       });
       setToggleRmdVisualModeButtonLatched(isVisualMode());
-      toggleRmdVisualModeButton_.addStyleName("rstudio-themes-inverts");
       return toggleRmdVisualModeButton_;
    }
    
@@ -707,9 +713,13 @@ public class TextEditingTargetWidget
       // logic for the standard one is tied up in DOM visibility, and we didn't
       // want to refactor that code in a conservative release (v1.4). it's
       // expected that the whole 'visual mode' concept will go away in v1.5
+      ImageResource2x imageResource = userState_.theme().getValue().getIsDark() ?
+         new ImageResource2x(StandardIcons.INSTANCE.outlineDark2x()) :
+         new ImageResource2x(StandardIcons.INSTANCE.outline2x());
+
       toggleVisualModeOutlineButton_ = new LatchingToolbarButton(ToolbarButton.NoText,
             ToolbarButton.NoTitle, true, /* textIndicatesState */
-            new ImageResource2x(StandardIcons.INSTANCE.outline2x()), event -> {
+            imageResource, event -> {
                target_.setPreferredOutlineWidgetVisibility(
                      !target_.getPreferredOutlineWidgetVisibility());
             });
@@ -722,7 +732,6 @@ public class TextEditingTargetWidget
             });
 
       // add to toolbar
-      toggleVisualModeOutlineButton_.addStyleName("rstudio-themes-inverts");
       toolbar.addRightWidget(toggleVisualModeOutlineButton_);
    }
 

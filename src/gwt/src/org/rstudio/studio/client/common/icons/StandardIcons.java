@@ -81,9 +81,15 @@ public interface StandardIcons extends ClientBundle
    @Source("outline_2x.png")
    ImageResource outline2x();
 
+   @Source("outlineDark_2x.png")
+   ImageResource outlineDark2x();
+   
    @Source("options_2x.png")
    ImageResource options2x();
    
    @Source("visual_mode_2x.png")
    ImageResource visual_mode2x();
+   
+   @Source("visual_mode_dark_2x.png")
+   ImageResource visual_mode_dark2x();
 }

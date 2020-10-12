@@ -133,6 +133,7 @@ public interface ThemeResources extends ClientBundle
    ImageResource closeDialog2x();
   
    ImageResource toolbarSeparator();
+   ImageResource toolbarSeparatorDark();
 
    @Source("menuDownArrow_2x.png")
    ImageResource menuDownArrow2x();
