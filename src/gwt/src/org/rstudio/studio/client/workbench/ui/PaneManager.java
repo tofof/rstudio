@@ -362,8 +362,10 @@ public class PaneManager
                   new WindowStateChangeEvent(WindowState.NORMAL));
          }
       }
-
       source_.loadDisplay();
+      
+      manageTabSetWindowState();
+      
       userPrefs.panes().addValueChangeHandler(evt ->
       {
          ArrayList<LogicalWindow> newPanes = createPanes(
@@ -381,6 +383,7 @@ public class PaneManager
          populateTabPanel(tabs2_, tabSet2TabPanel_, tabSet2MinPanel_);
          hiddenTabs_ = tabNamesToTabs(evt.getValue().getHiddenTabSet());
          populateTabPanel(hiddenTabs_, hiddenTabSetTabPanel_, hiddenTabSetMinPanel_);
+         manageTabSetWindowState();
 
          // manage source column commands
          boolean visible = userPrefs.allowSourceColumns().getValue() &&
@@ -1101,6 +1104,7 @@ public class PaneManager
       // hidden windows to display themselves, and so on.
       for (LogicalWindow window : panes_)
          window.onWindowStateChange(new WindowStateChangeEvent(WindowState.NORMAL, true));
+      manageTabSetWindowState();
 
       maximizedWindow_.onWindowStateChange(new WindowStateChangeEvent(WindowState.NORMAL, true));
 
@@ -1808,6 +1812,22 @@ public class PaneManager
       default:
          throw new IllegalArgumentException("Unexpected tab '" + tab.toString() + "'");
       }
+   }
+
+   private void manageTabSetWindowState()
+   {
+      LogicalWindow tabSet1Window = panesByName_.get("TabSet1");
+      LogicalWindow tabSet2Window = panesByName_.get("TabSet2");
+
+      if (tabSet1TabPanel_.isEmpty())
+         tabSet1Window.onWindowStateChange(new WindowStateChangeEvent(WindowState.HIDE));
+      else if (tabSet1Window.getState() == WindowState.HIDE)
+         tabSet1Window.onWindowStateChange(new WindowStateChangeEvent(WindowState.NORMAL));
+
+      if (tabSet2TabPanel_.isEmpty())
+         tabSet2Window.onWindowStateChange(new WindowStateChangeEvent(WindowState.HIDE));
+      else if (tabSet2Window.getState() == WindowState.HIDE)
+         tabSet2Window.onWindowStateChange(new WindowStateChangeEvent(WindowState.NORMAL));
    }
 
    private void manageLayoutCommands()
