@@ -1,7 +1,7 @@
 /*
  * spelling.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -16,7 +16,7 @@
 import { MarkType, Schema, Node as ProsemirrorNode } from 'prosemirror-model';
 import { EditorState } from 'prosemirror-state';
 
-import { EditorWordSource, EditorWordRange, EditorUISpelling, kCharClassNonWord } from "../../api/spelling";
+import { EditorWordSource, EditorWordRange, EditorUISpelling, kCharClassNonWord } from '../../api/spelling';
 import { PandocMark, getMarkRange } from '../../api/mark';
 
 export const beginDocPos = () => 1;
@@ -29,8 +29,7 @@ export function getWords(
   spelling: EditorUISpelling,
   excluded: MarkType[],
 ): EditorWordSource {
-
-  // provide defaults 
+  // provide defaults
   if (start === -1) {
     start = beginDocPos();
   }
@@ -38,14 +37,13 @@ export function getWords(
     end = endDocPos(state.doc);
   }
 
-  // enlarge range to begin/end 
+  // enlarge range to begin/end
   const beginPos = findBeginWord(state, start, spelling.classifyCharacter);
   const endPos = findEndWord(state, end, spelling.classifyCharacter);
 
   const words: EditorWordRange[] = [];
   let currentPos = beginPos;
   while (currentPos <= endPos) {
-
     // advance until we find a word
     currentPos = advanceToWord(state, currentPos, spelling.classifyCharacter);
     if (currentPos >= endPos) {
@@ -54,16 +52,21 @@ export function getWords(
 
     // find end of word
     const endWordPos = findEndWord(state, currentPos, spelling.classifyCharacter);
+    if (endWordPos === currentPos) {
+      break;
+    }
 
     // add word if it doesn't have an excluded type
     if (!excludeWord(state.doc, currentPos, endWordPos, excluded)) {
       const wordText = state.doc.textBetween(currentPos, endWordPos);
-      words.push(...spelling.breakWords(wordText).map(wordRange => {
-        return {
-          start: currentPos + wordRange.start,
-          end: currentPos + wordRange.end
-        };
-      }));
+      words.push(
+        ...spelling.breakWords(wordText).map(wordRange => {
+          return {
+            start: currentPos + wordRange.start,
+            end: currentPos + wordRange.end,
+          };
+        }),
+      );
     }
 
     // next word
@@ -81,12 +84,11 @@ export function getWords(
       } else {
         return null;
       }
-    }
+    },
   };
 }
 
 function excludeWord(doc: ProsemirrorNode, from: number, to: number, excluded: MarkType[]) {
-
   // does it have one of our excluded mark types?
   if (excluded.some(markType => doc.rangeHasMark(from, to, markType))) {
     return true;
@@ -104,7 +106,6 @@ function excludeWord(doc: ProsemirrorNode, from: number, to: number, excluded: M
   // don't exclude
   return false;
 }
-
 
 export function advanceToWord(state: EditorState, pos: number, classifier: (ch: number) => number) {
   while (pos < endDocPos(state.doc)) {
@@ -150,7 +151,7 @@ export function findEndWord(state: EditorState, pos: number, classifier: (ch: nu
 // get the chracter code at the specified position, returning character code 32 (a space)
 // for begin/end of document, block boundaries, and non-text leaf nodes
 export function charAt(doc: ProsemirrorNode, pos: number) {
-  if (pos < beginDocPos() || pos >= (endDocPos(doc))) {
+  if (pos < beginDocPos() || pos >= endDocPos(doc)) {
     return 32; // space for doc boundary
   } else {
     return (doc.textBetween(pos, pos + 1, ' ', ' ') || ' ').charCodeAt(0);
@@ -158,11 +159,9 @@ export function charAt(doc: ProsemirrorNode, pos: number) {
 }
 
 export function excludedMarks(schema: Schema, marks: readonly PandocMark[]): MarkType[] {
-  return marks
-    .filter(mark => mark.noSpelling)
-    .map(mark => schema.marks[mark.name]);
+  return marks.filter(mark => mark.noSpelling).map(mark => schema.marks[mark.name]);
 }
 
 export function spellcheckerWord(word: string) {
-  return word.replace(/’/g, '\'');
+  return word.replace(/’/g, "'");
 }

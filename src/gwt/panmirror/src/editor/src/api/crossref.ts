@@ -1,7 +1,7 @@
 /*
  * crossref.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -13,8 +13,8 @@
  *
  */
 
-import { EditorUI } from "./ui";
-import { cslTypes } from "./csl";
+import { EditorUI } from './ui';
+import { cslTypes } from './csl';
 
 // https://github.com/CrossRef/rest-api-doc
 export interface CrossrefServer {
@@ -44,7 +44,7 @@ export interface CrossrefWork {
   // Work titles, including translated titles
   title?: string[];
 
-  // DOI of the work 
+  // DOI of the work
   DOI: string;
 
   // URL form of the work's DOI
@@ -227,7 +227,6 @@ export function crossRefTypeToCSLType(type: string): string {
       return cslTypes.article;
   }
 }
-
 
 export const crossRefTypes = {
   bookSection: 'book-section',

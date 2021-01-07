@@ -1,7 +1,7 @@
 /*
  * image-events.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -31,10 +31,9 @@ export function imageEventsPlugin(ui: EditorUI) {
         drop: imageDrop(ui),
       },
       handlePaste: imagePaste(ui),
-    }
+    },
   });
 }
-
 
 function imagePaste(ui: EditorUI) {
   return (view: EditorView, event: Event) => {
@@ -56,13 +55,21 @@ function imagePaste(ui: EditorUI) {
         }
         // raw image paste (e.g. from an office doc)
       } else if (clipboardEvent.clipboardData.types.includes('application/x-qt-image')) {
+
+        // don't process excel sheets (we want to use their html representation)
+        const kTextHtml = "text/html";
+        if (clipboardEvent.clipboardData.types.includes(kTextHtml) &&
+            clipboardEvent.clipboardData.getData(kTextHtml).includes("content=Excel.Sheet")) {
+          return false;
+        }
+       
         ui.context.clipboardImage().then(image => {
           if (image) {
             handleImageUris(view, view.state.selection.from, event, [image], ui);
           }
-          event.preventDefault();
-          return true;
         });
+        event.preventDefault();
+        return true;
       }
     }
 
@@ -112,7 +119,6 @@ function imageDrop(ui: EditorUI) {
 }
 
 function handleImageUris(view: EditorView, pos: number, event: Event, uris: string[], ui: EditorUI): boolean {
-
   // filter out images
   const imageUris = uris.filter(uri => {
     // get extension and check it it's an image

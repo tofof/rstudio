@@ -1,7 +1,7 @@
 /*
  * code_block.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -65,12 +65,12 @@ const extension = (context: ExtensionContext): Extension => {
             const fontClass = 'pm-fixedwidth-font';
             const attrs = hasAttr
               ? pandocAttrToDomAttr({
-                ...node.attrs,
-                classes: [...node.attrs.classes, fontClass],
-              })
+                  ...node.attrs,
+                  classes: [...node.attrs.classes, fontClass],
+                })
               : {
-                class: fontClass,
-              };
+                  class: fontClass,
+                };
             return ['pre', attrs, ['code', 0]];
           },
         },
@@ -267,7 +267,7 @@ function codeBlockAttrEdit(pandocExtensions: PandocExtensions, pandocCapabilitie
         },
         offset: {
           top: 3,
-          right: 0
+          right: 0,
         },
         editFn: () => codeBlockFormatCommandFn(pandocExtensions, ui, pandocCapabilities.highlight_languages),
       };

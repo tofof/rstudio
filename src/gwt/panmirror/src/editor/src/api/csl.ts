@@ -1,7 +1,7 @@
 /*
  * csl.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -14,13 +14,12 @@
  */
 import { Node as ProsemirrorNode } from 'prosemirror-model';
 
-import { parseYamlNodes } from "./yaml";
+import { parseYamlNodes } from './yaml';
 import { crossRefTypeToCSLType } from './crossref';
 import { EditorUI } from './ui';
 import { EditorUIImages } from './ui-images';
 
 export interface CSL {
-
   // The id. This is technically required, but some providers (like crossref) don't provide
   // one
   id?: string;
@@ -37,7 +36,7 @@ export interface CSL {
   // Title
   title?: string;
 
-  // DOI of the work 
+  // DOI of the work
   DOI?: string;
 
   // URL form of the work's DOI
@@ -70,9 +69,10 @@ export interface CSL {
   ISBN?: string;
   'original-title'?: string;
   'short-title'?: string;
-  'subtitle'?: string;
+  subtitle?: string;
   subject?: string;
   archive?: string;
+  license?: [];
 }
 
 export interface CSLName {
@@ -83,7 +83,7 @@ export interface CSLName {
 
 export interface CSLDate {
   'date-parts'?: Array<[number, number?, number?]>;
-  'raw'?: string;
+  raw?: string;
 }
 
 // Crossref sends some items back with invalid data types in the CSL JSON
@@ -91,17 +91,28 @@ export interface CSLDate {
 // stores as Arrays which are not properly flatted to strings as Pandoc cite-proc expects.
 // This will flatten any of these fields to the first element of the array
 export function sanitizeForCiteproc(csl: CSL): CSL {
-
   // This field list was create speculatively, so may contain fields that do not require
-  // sanitization (or may omit fields that require it). 
-  const sanitizeProperties = ['ISSN', 'ISBN', 'title', 'subject', 'archive', 'original-title', 'short-title', 'subtitle', 'container-title', 'short-container-title'];
+  // sanitization (or may omit fields that require it).
+  const sanitizeProperties = [
+    'ISSN',
+    'ISBN',
+    'title',
+    'subject',
+    'archive',
+    'original-title',
+    'short-title',
+    'subtitle',
+    'container-title',
+    'short-container-title',
+    'license'
+  ];
   const cslAny: { [key: string]: any } = {
-    ...csl
+    ...csl,
   };
   const keys = Object.keys(cslAny);
   keys
     .filter(key => sanitizeProperties.includes(key))
-    .forEach((property) => {
+    .forEach(property => {
       const value = cslAny[property];
       if (value && Array.isArray(value)) {
         if (value.length > 0) {
@@ -110,19 +121,26 @@ export function sanitizeForCiteproc(csl: CSL): CSL {
           cslAny[property] = undefined;
         }
       }
-      return csl;
+      return cslAny;
     });
 
   // Strip any raw date representations
-  if (csl.issued?.raw) {
-    delete csl.issued.raw;
+  if (cslAny.issued?.raw) {
+    delete cslAny.issued.raw;
   }
+
+  // Pubmed and others may included license information (including date ranges and more)
+  // which will not be properly parsed by Pandoc (when writing to the bibiliography). Remove
+  if (cslAny.license) {
+    delete cslAny.license;
+  }
+
   // pandoc-citeproc performance is extremely poor with large abstracts. As a result, purge this property
   delete cslAny.abstract;
   delete cslAny.id;
 
-  // Ensure only valid CSL types make it through  
-  csl.type = ensureValidCSLType(csl.type);
+  // Ensure only valid CSL types make it through
+  cslAny.type = ensureValidCSLType(cslAny.type);
 
   return cslAny as CSL;
 }
@@ -142,7 +160,6 @@ export function ensureValidCSLType(type: string): string {
 }
 
 export function cslFromDoc(doc: ProsemirrorNode): string | undefined {
-
   // read the Yaml blocks from the document
   const parsedYamlNodes = parseYamlNodes(doc);
 
@@ -152,7 +169,6 @@ export function cslFromDoc(doc: ProsemirrorNode): string | undefined {
 
   // Look through any yaml nodes to see whether any contain csl information
   if (cslParsedYamls.length > 0) {
-
     // Pandoc uses the last csl block (whether or not it shares a yaml block with the
     // bibliographies element that pandoc will ultimately use) so just pick the last csl
     // block.
@@ -167,8 +183,8 @@ export function cslFromDoc(doc: ProsemirrorNode): string | undefined {
 // See https://www.loc.gov/standards/datetime/
 // Currently omits time component so this isn't truly level 0
 export function cslDateToEDTFDate(date: CSLDate) {
-  if (date["date-parts"]) {
-    const paddedParts = date["date-parts"][0].map(part => {
+  if (date['date-parts']) {
+    const paddedParts = date['date-parts'][0].map(part => {
       const partStr = part?.toString();
       if (partStr?.length === 1) {
         return `0${partStr}`;
@@ -267,10 +283,5 @@ export const cslTypes = {
   speech: 'speech',
   thesis: 'thesis',
   treaty: 'treaty',
-  webpage: 'webpage'
+  webpage: 'webpage',
 };
-
-
-
-
-

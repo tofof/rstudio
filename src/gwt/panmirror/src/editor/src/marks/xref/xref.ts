@@ -1,7 +1,7 @@
 /*
  * xref.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -15,7 +15,6 @@
 
 import { Schema, Node as ProsemirrorNode, Mark, Fragment } from 'prosemirror-model';
 import { EditorState, Transaction } from 'prosemirror-state';
-import { toggleMark } from 'prosemirror-commands';
 import { InputRule } from 'prosemirror-inputrules';
 import { Transform } from 'prosemirror-transform';
 
@@ -25,7 +24,7 @@ import { Extension, ExtensionContext } from '../../api/extension';
 import { detectAndApplyMarks, removeInvalidatedMarks, getMarkRange } from '../../api/mark';
 import { MarkTransaction, trTransform } from '../../api/transaction';
 import { FixupContext } from '../../api/fixup';
-import { ProsemirrorCommand, EditorCommandId } from '../../api/command';
+import { ProsemirrorCommand, EditorCommandId, toggleMarkType } from '../../api/command';
 import { canInsertNode } from '../../api/node';
 import { fragmentText } from '../../api/fragment';
 import { PandocOutput } from '../../api/pandoc';
@@ -109,6 +108,7 @@ const extension = (context: ExtensionContext): Extension | null => {
                 kRefRegExDetectAndApply,
                 markType,
                 () => ({}),
+                () => true,
                 match => match[1],
               );
             });
@@ -136,6 +136,7 @@ const extension = (context: ExtensionContext): Extension | null => {
               kRefRegExDetectAndApply,
               node.type.schema.marks.xref,
               () => ({}),
+              () => true,
               match => match[1],
             );
           },
@@ -144,10 +145,7 @@ const extension = (context: ExtensionContext): Extension | null => {
     },
 
     inputRules: (_schema: Schema) => {
-      return [
-        atRefInputRule(),
-        ...(format.rmdExtensions.bookdownXRefUI ? [refPrefixInputRule()] : [])
-      ];
+      return [atRefInputRule(), ...(format.rmdExtensions.bookdownXRefUI ? [refPrefixInputRule()] : [])];
     },
 
     plugins: (schema: Schema) => [xrefPopupPlugin(schema, ui, server)],
@@ -162,7 +160,7 @@ const extension = (context: ExtensionContext): Extension | null => {
             [],
             (state: EditorState, dispatch?: (tr: Transaction<any>) => void) => {
               // enable/disable command
-              if (!canInsertNode(state, schema.nodes.text) || !toggleMark(schema.marks.xref)(state)) {
+              if (!canInsertNode(state, schema.nodes.text) || !toggleMarkType(schema.marks.xref)(state)) {
                 return false;
               }
               if (dispatch) {
@@ -212,7 +210,8 @@ function atRefInputRule() {
 }
 
 function refPrefixInputRule() {
-  return new InputRule(/(^|[^`])(Chapter|Section|Figure|Table|Equation) $/,
+  return new InputRule(
+    /(^|[^`])(Chapter|Section|Figure|Table|Equation) $/,
     (state: EditorState, match: string[], start: number, end: number) => {
       const tr = state.tr;
       tr.insertText(' ');
@@ -227,9 +226,9 @@ function refPrefixInputRule() {
       insertRef(tr, prefix);
       setTextSelection(tr.selection.head - 1)(tr);
       return tr;
-    });
+    },
+  );
 }
-
 
 function insertRef(tr: Transaction, prefix = '') {
   const schema = tr.doc.type.schema;

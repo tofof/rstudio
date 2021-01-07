@@ -1,6 +1,6 @@
 /* UserPrefsAccessor.java
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -527,6 +527,18 @@ public class UserPrefsAccessor extends Prefs
    }
 
    /**
+    * Whether web links in comments are clickable.
+    */
+   public PrefValue<Boolean> highlightWebLink()
+   {
+      return bool(
+         "highlight_web_link",
+         "", 
+         "Whether web links in comments are clickable.", 
+         true);
+   }
+
+   /**
     * The keybindings to use in the RStudio code editor.
     */
    public PrefValue<String> editorKeybindings()
@@ -779,7 +791,7 @@ public class UserPrefsAccessor extends Prefs
          "show_diagnostics_other",
          "Show diagnostics in other languages", 
          "Whether to show diagnostic messages for other types of code (not R or C++).", 
-         true);
+         false);
    }
 
    /**
@@ -1143,7 +1155,7 @@ public class UserPrefsAccessor extends Prefs
          "limit_visible_console",
          "Limit visible console output", 
          "Whether to only show a limited window of the total console output", 
-         false);
+         true);
    }
 
    /**
@@ -3039,6 +3051,30 @@ public class UserPrefsAccessor extends Prefs
          15);
    }
 
+   /**
+    * Whether the Insert Pipe Operator command should insert the native R pipe operator, |>
+    */
+   public PrefValue<Boolean> insertNativePipeOperator()
+   {
+      return bool(
+         "insert_native_pipe_operator",
+         "Use R's native pipe operator, |>", 
+         "Whether the Insert Pipe Operator command should insert the native R pipe operator, |>", 
+         false);
+   }
+
+   /**
+    * Whether to keep track of recently used commands in the Command Palette
+    */
+   public PrefValue<Boolean> commandPaletteMru()
+   {
+      return bool(
+         "command_palette_mru",
+         "Remember recently used items in Command Palette", 
+         "Whether to keep track of recently used commands in the Command Palette", 
+         true);
+   }
+
    public void syncPrefs(String layer, JsObject source)
    {
       if (source.hasKey("run_rprofile_on_resume"))
@@ -3101,6 +3137,8 @@ public class UserPrefsAccessor extends Prefs
          showIndentGuides().setValue(layer, source.getBool("show_indent_guides"));
       if (source.hasKey("continue_comments_on_newline"))
          continueCommentsOnNewline().setValue(layer, source.getBool("continue_comments_on_newline"));
+      if (source.hasKey("highlight_web_link"))
+         highlightWebLink().setValue(layer, source.getBool("highlight_web_link"));
       if (source.hasKey("editor_keybindings"))
          editorKeybindings().setValue(layer, source.getString("editor_keybindings"));
       if (source.hasKey("insert_matching"))
@@ -3467,6 +3505,10 @@ public class UserPrefsAccessor extends Prefs
          pythonPath().setValue(layer, source.getString("python_path"));
       if (source.hasKey("save_retry_timeout"))
          saveRetryTimeout().setValue(layer, source.getInteger("save_retry_timeout"));
+      if (source.hasKey("insert_native_pipe_operator"))
+         insertNativePipeOperator().setValue(layer, source.getBool("insert_native_pipe_operator"));
+      if (source.hasKey("command_palette_mru"))
+         commandPaletteMru().setValue(layer, source.getBool("command_palette_mru"));
    }
    public List<PrefValue<?>> allPrefs()
    {
@@ -3501,6 +3543,7 @@ public class UserPrefsAccessor extends Prefs
       prefs.add(showInvisibles());
       prefs.add(showIndentGuides());
       prefs.add(continueCommentsOnNewline());
+      prefs.add(highlightWebLink());
       prefs.add(editorKeybindings());
       prefs.add(insertMatching());
       prefs.add(insertSpacesAroundEquals());
@@ -3684,6 +3727,8 @@ public class UserPrefsAccessor extends Prefs
       prefs.add(pythonVersion());
       prefs.add(pythonPath());
       prefs.add(saveRetryTimeout());
+      prefs.add(insertNativePipeOperator());
+      prefs.add(commandPaletteMru());
       return prefs;
    }
    

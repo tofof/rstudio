@@ -1,7 +1,7 @@
 /*
  * editor.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -26,7 +26,14 @@ import { citeUI } from '../api/cite';
 import { EditorOptions } from '../api/options';
 import { ProsemirrorCommand, CommandFn, EditorCommand } from '../api/command';
 import { EditorUI } from '../api/ui';
-import { attrPropsToInput, attrInputToProps, AttrProps, AttrEditInput, InsertCiteProps, InsertCiteUI } from '../api/ui-dialogs';
+import {
+  attrPropsToInput,
+  attrInputToProps,
+  AttrProps,
+  AttrEditInput,
+  InsertCiteProps,
+  InsertCiteUI,
+} from '../api/ui-dialogs';
 
 import { Extension } from '../api/extension';
 import { PandocWriterOptions } from '../api/pandoc';
@@ -43,6 +50,7 @@ import {
   FocusEvent,
   DispatchEvent,
   NavigateEvent,
+  BlurEvent,
 } from '../api/event-types';
 import {
   PandocFormat,
@@ -128,6 +136,9 @@ export interface EditorSetMarkdownResult {
 
   // unparsed meta
   unparsed_meta: { [key: string]: any };
+
+  // updated outline 
+  location: EditingOutlineLocation;
 }
 
 export interface EditorContext {
@@ -159,7 +170,7 @@ export interface EditorFindReplace {
   selectNext: () => boolean;
   selectPrevious: () => boolean;
   replace: (text: string) => boolean;
-  replaceAll: (text: string) => boolean;
+  replaceAll: (text: string) => number;
   clear: () => boolean;
 }
 
@@ -202,7 +213,7 @@ export class UITools {
     this.attr = {
       propsToInput: attrPropsToInput,
       inputToProps: attrInputToProps,
-      pandocAutoIdentifier: (text: string) => pandocAutoIdentifier(text, false)
+      pandocAutoIdentifier: (text: string) => pandocAutoIdentifier(text, false),
     };
 
     this.image = {
@@ -277,7 +288,7 @@ export class Editor {
     options = {
       autoFocus: false,
       spellCheck: false,
-      codeEditor: "codemirror",
+      codeEditor: 'codemirror',
       rmdImagePreview: false,
       hideFormatComment: false,
       className: '',
@@ -366,8 +377,8 @@ export class Editor {
     // carry omni insert info)
     this.registerCompletionExtension();
 
-    // register realtime spellchecking (done in a separate step b/c it 
-    // requires access to PandocMark definitions to determine which 
+    // register realtime spellchecking (done in a separate step b/c it
+    // requires access to PandocMark definitions to determine which
     // marks to exclude from spellchecking)
     this.registerRealtimeSpelling();
 
@@ -486,9 +497,8 @@ export class Editor {
       });
       this.view.updateState(this.state);
     } else {
-
       // note current editing location
-      const location = this.getEditingLocation();
+      const loc = this.getEditingLocation();
 
       // replace the top level nodes in the doc
       const tr = this.state.tr;
@@ -501,8 +511,14 @@ export class Editor {
         return false;
       });
       // set selection to previous location if it's still valid
-      if (location.pos < this.view.state.doc.nodeSize) {
-        setTextSelection(location.pos)(tr);
+      if (loc.pos < tr.doc.nodeSize) {
+        // eat exceptions that might result from an invalid position
+        try {
+          setTextSelection(loc.pos)(tr);
+        } catch(e) {
+          // do-nothing, this error can happen and shouldn't result in 
+          // a failure to setMarkdown
+        }
       }
       // dispatch
       this.view.dispatch(tr);
@@ -522,13 +538,15 @@ export class Editor {
     // current 'view' of the doc as markdown looks like
     const getMarkdownTr = this.state.tr;
     const canonical = await this.getMarkdownCode(getMarkdownTr, options);
+    const location = getEditingOutlineLocation(this.state);
 
     // return
     return {
       canonical,
       line_wrapping,
       unrecognized,
-      unparsed_meta
+      unparsed_meta,
+      location
     };
   }
 
@@ -540,7 +558,6 @@ export class Editor {
   }
 
   public async getMarkdown(options: PandocWriterOptions): Promise<EditorCode> {
-
     // get the code
     const tr = this.state.tr;
     const code = await this.getMarkdownCode(tr, options);
@@ -549,8 +566,12 @@ export class Editor {
     return {
       code,
       selection_only: this.lastTrSelectionOnly,
-      location: getEditingOutlineLocation(this.state)
+      location: getEditingOutlineLocation(this.state),
     };
+  }
+
+  public getEditingOutlineLocation(): EditingOutlineLocation {
+    return getEditingOutlineLocation(this.state);
   }
 
   public getHTML(): string {
@@ -631,16 +652,10 @@ export class Editor {
   }
 
   public getSelectedText(): string {
-
-    return this.state.doc.textBetween(
-      this.state.selection.from,
-      this.state.selection.to
-    );
-
+    return this.state.doc.textBetween(this.state.selection.from, this.state.selection.to);
   }
 
   public replaceSelection(value: string): void {
-
     // retrieve properties we need from selection
     const { from, empty } = this.view.state.selection;
 
@@ -657,7 +672,6 @@ export class Editor {
       const trSetSel = this.view.state.tr.setSelection(sel);
       this.view.dispatch(trSetSel);
     }
-
   }
 
   public getYamlFrontMatter() {
@@ -689,7 +703,6 @@ export class Editor {
   }
 
   public navigate(type: NavigationType, location: string, recordCurrent = true, animate = false) {
-
     // perform navigation
     const nav = navigateTo(this.view, type, location, animate);
 
@@ -701,7 +714,6 @@ export class Editor {
       this.emitEvent(NavigateEvent, nav);
     }
   }
-
 
   public resize() {
     this.syncContentWidth();
@@ -819,14 +831,14 @@ export class Editor {
         math: this.context.ui.math.typeset ? editorMath(this.context.ui) : undefined,
         events: {
           subscribe: this.subscribe.bind(this),
-          emit: this.emitEvent.bind(this)
+          emit: this.emitEvent.bind(this),
         },
         pandocExtensions: this.pandocFormat.extensions,
         pandocCapabilities: this.pandocCapabilities,
         server: this.context.server,
         navigation: {
-          navigate: this.navigate.bind(this)
-        }
+          navigate: this.navigate.bind(this),
+        },
       },
       this.context.extensions,
     );
@@ -848,14 +860,10 @@ export class Editor {
   }
 
   private registerRealtimeSpelling() {
-    this.extensions.registerPlugins([
-      realtimeSpellingPlugin(
-        this.schema,
-        this.extensions.pandocMarks(),
-        this.context.ui,
-        this.events
-      )
-    ], true);
+    this.extensions.registerPlugins(
+      [realtimeSpellingPlugin(this.schema, this.extensions.pandocMarks(), this.context.ui, this.events)],
+      true,
+    );
   }
 
   private createPlugins(): Plugin[] {
@@ -905,6 +913,10 @@ export class Editor {
       key: new PluginKey('domevents'),
       props: {
         handleDOMEvents: {
+          blur: (view: EditorView, event: Event) => {
+            this.emitEvent(BlurEvent);
+            return false;
+          },
           focus: (view: EditorView, event: Event) => {
             this.emitEvent(FocusEvent, view.state.doc);
             return false;
@@ -939,7 +951,7 @@ export class Editor {
     });
 
     // for windows desktop, build a list of control key handlers b/c qtwebengine
-    // ends up corrupting ctrl+ keys so they don't hit the ace keybinding 
+    // ends up corrupting ctrl+ keys so they don't hit the ace keybinding
     // (see: https://github.com/rstudio/rstudio/issues/7142)
     const ctrlKeyCodes: { [key: string]: CommandFn } = {};
     Object.keys(pluginKeys).forEach(keyCombo => {
@@ -972,7 +984,7 @@ export class Editor {
           }
           // default handling
           return prosemirrorKeydownHandler(view, event);
-        }
+        },
       },
     });
   }
@@ -1047,12 +1059,11 @@ export class Editor {
   }
 
   private async getMarkdownCode(tr: Transaction, options: PandocWriterOptions) {
-
-    // apply save fixups 
+    // apply save fixups
     this.extensionFixups(tr, FixupContext.Save);
 
     // apply sentence wrapping if requested
-    if (options.wrap === "sentence") {
+    if (options.wrap === 'sentence') {
       wrapSentences(tr);
     }
 

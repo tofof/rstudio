@@ -1,7 +1,7 @@
 /*
  * oultine.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -23,9 +23,17 @@ import { Extension } from '../api/extension';
 import { transactionsHaveChange, kSetMarkdownTransaction } from '../api/transaction';
 import { findTopLevelBodyNodes } from '../api/node';
 import { uuidv4 } from '../api/util';
-import { EditorOutlineItem, EditorOutlineItemType, EditorOutline, isOutlineNode, getEditingOutlineLocation, getDocumentOutline } from '../api/outline';
+import {
+  EditorOutlineItem,
+  EditorOutlineItemType,
+  EditorOutline,
+  isOutlineNode,
+  getEditingOutlineLocation,
+  getDocumentOutline,
+} from '../api/outline';
 import { navigateToPos } from '../api/navigation';
 import { ProsemirrorCommand, EditorCommandId } from '../api/command';
+import { rmdChunkEngineAndLabel } from '../api/rmd';
 
 const kOutlineIdsTransaction = 'OutlineIds';
 
@@ -97,7 +105,6 @@ const extension: Extension = {
   },
 };
 
-
 export function goToSectionCommand(dir: 'next' | 'previous') {
   return (state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView) => {
     if (dispatch && view) {
@@ -109,7 +116,7 @@ export function goToSectionCommand(dir: 'next' | 'previous') {
         if (dir === 'next') {
           return nodeWithPos.pos > state.selection.head;
         } else {
-          return nodeWithPos.pos < (state.selection.head - 1);
+          return nodeWithPos.pos < state.selection.head - 1;
         }
       });
       if (target) {
@@ -120,8 +127,6 @@ export function goToSectionCommand(dir: 'next' | 'previous') {
   };
 }
 
-
-
 function editorOutline(state: EditorState): EditorOutline {
   // get all of the headings (bail if there are none)
   const doc = state.doc;
@@ -130,20 +135,46 @@ function editorOutline(state: EditorState): EditorOutline {
     return [];
   }
 
-  // function to create an outline node from a heading
-  const editorOutlineItem = (nodeWithPos: NodeWithPos, defaultLevel: number) => ({
-    navigation_id: nodeWithPos.node.attrs.navigation_id,
-    type: nodeWithPos.node.type.name as EditorOutlineItemType,
-    level: nodeWithPos.node.attrs.level || defaultLevel,
-    title: nodeWithPos.node.type.spec.code ? nodeWithPos.node.type.name : nodeWithPos.node.textContent,
-    children: [],
-  });
+  // create mapping of node type names to their current sequence
+  const sequence = new Map<string, number>();
+
+  // function to create an outline item from a node
+  const editorOutlineItem = (nodeWithPos: NodeWithPos, defaultLevel: number) => {
+    const typename = nodeWithPos.node.type.name;
+
+    // build sequence (ordinal of entry within node type)
+    let sequenceLast = sequence.get(typename);
+    if (sequenceLast === undefined) {
+      sequenceLast = 0;
+    }
+    const sequenceNext = sequenceLast + 1;
+    sequence.set(typename, sequenceNext);
+
+    const item = {
+      navigation_id: nodeWithPos.node.attrs.navigation_id,
+      type: nodeWithPos.node.type.name as EditorOutlineItemType,
+      level: nodeWithPos.node.attrs.level || defaultLevel,
+      title: nodeWithPos.node.type.spec.code ? nodeWithPos.node.type.name : nodeWithPos.node.textContent,
+      sequence: sequenceNext,
+      children: [],
+    };
+    
+    // if this is an R Markdown chunk, extract the title from the chunk
+    if (nodeWithPos.node.type.name === 'rmd_chunk') {
+      const chunk = rmdChunkEngineAndLabel(nodeWithPos.node.textContent);
+      if (chunk) {
+        item.title = chunk.label;
+      }
+    }
+    return item; 
+  };
 
   // extract the outline
   const rootOutlineItem: EditorOutlineItem = {
     navigation_id: '',
     type: '' as EditorOutlineItemType,
     level: 0,
+    sequence: 0,
     title: '',
     children: [],
   };

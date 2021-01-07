@@ -1,7 +1,7 @@
 /*
  * mark.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -167,6 +167,7 @@ export function detectAndApplyMarks(
   re: RegExp,
   markType: MarkType,
   attrs: (match: RegExpMatchArray) => {},
+  filter?: (from: number, to: number) => boolean,
   text?: (match: RegExpMatchArray) => string,
 ) {
   re.lastIndex = 0;
@@ -185,10 +186,12 @@ export function detectAndApplyMarks(
         (!range || range.from !== from || range.to !== to) &&
         !tr.doc.rangeHasMark(from, to, markType.schema.marks.code)
       ) {
-        const mark = markType.create(attrs instanceof Function ? attrs(match) : attrs);
-        tr.addMark(from, to, mark);
-        if (tr.selection.anchor === to) {
-          tr.removeStoredMark(mark.type);
+        if (!filter || filter(from, to)) {
+          const mark = markType.create(attrs instanceof Function ? attrs(match) : attrs);
+          tr.addMark(from, to, mark);
+          if (tr.selection.anchor === to) {
+            tr.removeStoredMark(mark.type);
+          }
         }
       }
       match = re.lastIndex !== 0 ? re.exec(textNode.text) : null;

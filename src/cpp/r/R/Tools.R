@@ -1,7 +1,7 @@
 #
 # Tools.R
 #
-# Copyright (C) 2020 by RStudio, PBC
+# Copyright (C) 2021 by RStudio, PBC
 #
 # Unless you have received this program directly from RStudio pursuant
 # to the terms of a commercial license agreement with RStudio, then
@@ -148,6 +148,8 @@ environment(.rs.Env[[".rs.addFunction"]]) <- .rs.Env
 # the error message
 .rs.addFunction("restoreGlobalEnvFromFile", function(path)
 {
+   Encoding(path) <- "UTF-8"
+
    status <- try(load(path, envir = .GlobalEnv), silent = TRUE)
    if (!inherits(status, "try-error"))
       return("")
@@ -170,28 +172,60 @@ environment(.rs.Env[[".rs.addFunction"]]) <- .rs.Env
 })
 
 # save current state of options() to file
-.rs.addFunction( "saveOptions", function(filename)
+.rs.addFunction("saveOptions", function(filename)
 {
-   opt = options();
-   suppressWarnings(save(opt, file=filename))
+   # get reference to current options
+   opt <- options()
+   
+   # don't attempt to serialize cpp11 preserve env as it may
+   # contain recursive R objects which cause crashes when serialized
+   #
+   # https://github.com/rstudio/rstudio-pro/issues/2052
+   opt$cpp11_preserve_env  <- NULL
+   opt$cpp11_preserve_xptr <- NULL
+   
+   # first write to sidecar file, and then rename that file
+   # (don't let failed serialization leave behind broken workspace)
+   sidecarFile <- paste(filename, "incomplete", sep = ".")
+   
+   # remove an old sidecar file if any -- these would be leftover from
+   # a previously-failed attempt to save the session
+   unlink(sidecarFile)
+   
+   status <- tryCatch(
+      suppressWarnings(save(opt, file = sidecarFile)),
+      error = identity
+   )
+
+   # if we manage to catch the error (might not be possible for stack overflow)
+   # then clean up the sidecar file and re-propagate the error (caller will take
+   # care of reporting further errors to user)
+   if (inherits(status, "error"))
+   {
+      unlink(sidecarFile)
+      stop(status)
+   }
+
+   # save completed successfully -- rename sidecar file to final location
+   file.rename(sidecarFile, filename)
 })
 
 # restore options() from file
-.rs.addFunction( "restoreOptions", function(filename)
+.rs.addFunction("restoreOptions", function(filename)
 {
    load(filename)
    options(opt)
 })
 
 # save current state of .libPaths() to file
-.rs.addFunction( "saveLibPaths", function(filename)
+.rs.addFunction("saveLibPaths", function(filename)
 {
-  libPaths = .libPaths();
-  save(libPaths, file=filename)
+  libPaths <- .libPaths()
+  save(libPaths, file = filename)
 })
 
 # restore .libPaths() from file
-.rs.addFunction( "restoreLibPaths", function(filename)
+.rs.addFunction("restoreLibPaths", function(filename)
 {
   load(filename)
   .libPaths(libPaths)
@@ -647,9 +681,31 @@ environment(.rs.Env[[".rs.addFunction"]]) <- .rs.Env
 })
 
 
-.rs.addFunction( "isLibraryWriteable", function(lib)
+.rs.addFunction("isLibraryWriteable", function(lib)
 {
-   file.exists(lib) && (file.access(lib, 2) == 0)
+   # file.access() can be unreliable here, as it's
+   # possible for a directory to be un-writable despite
+   # having writable permissions set. the best way to
+   # be sure is to try to create and remove a file in
+   # that directory
+   file <- tempfile(pattern = ".rstudio-", tmpdir = lib)
+   status <- tryCatch(file.create(file), condition = identity)
+   
+   # treat any conditions as errors, since R will emit a
+   # warning (rather than error) if file creation fails
+   if (inherits(status, "condition"))
+      return(FALSE)
+   
+   # now, try to remove the temporary file (it would stink
+   # if we could create files but not remove them ...)
+   status <- tryCatch(file.remove(file), condition = identity)
+   if (inherits(status, "condition"))
+      return(FALSE)
+   
+   # we successfully created and removed a file in the library
+   # directory; treat it as writable
+   TRUE
+   
 })
 
 .rs.addFunction( "defaultLibPathIsWriteable", function()

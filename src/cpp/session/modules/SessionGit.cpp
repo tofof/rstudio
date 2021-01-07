@@ -1,7 +1,7 @@
 /*
  * SessionGit.cpp
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -1418,16 +1418,13 @@ public:
       return Success();
    }
 
-   virtual core::Error show(const std::string& rev,
+   virtual core::Error show(const std::string& revision,
                             std::string* pOutput)
    {
       ShellArgs args = gitArgs()
             << "-c" << "core.quotepath=false"
-            << "show" << "--pretty=oneline" << "-M";
-      
-      if (s_gitVersion >= GIT_1_7_2)
-         args << "-c";
-      args << rev;
+            << "diff"
+            << (revision + "^!");
 
       return runGit(args, pOutput);
    }

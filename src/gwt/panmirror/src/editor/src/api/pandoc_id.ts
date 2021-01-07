@@ -1,7 +1,7 @@
 /*
  * pandoc_id.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -15,44 +15,42 @@
 
 // emulate pandoc behavior (https://pandoc.org/MANUAL.html#headings-and-sections)
 export function pandocAutoIdentifier(text: string, asciify: boolean) {
-
   if (asciify) {
     text = pandocAsciify(text);
   }
 
-  return text
-    // Remove all non-alphanumeric characters, except underscores, hyphens, and periods.
-    .replace(/[!"#$%&')*+,\/:;<=>?@\[\\\]^`{|}~]/g, '')  // filterPunct
+  return (
+    text
+      // Remove all non-alphanumeric characters, except underscores, hyphens, and periods.
+      .replace(/[!"#$%&')*+,\/:;<=>?@\[\\\]^`{|}~]/g, '') // filterPunct
 
-    // Replace all spaces with hyphens
-    .replace(/\s/g, '-')
+      // Replace all spaces with hyphens
+      .replace(/\s/g, '-')
 
-    // Convert all alphabetic characters to lowercase
-    .toLowerCase()
+      // Convert all alphabetic characters to lowercase
+      .toLowerCase()
 
-    // Remove everything up to the first letter 
-    .replace(/^[^A-Za-z]+/, '');
+      // Remove everything up to the first letter
+      .replace(/^[^A-Za-z]+/, '')
+  );
 }
 
 // emulate github behavior (note that unemoji should be done prior to calling this)
 // https://pandoc.org/MANUAL.html#extension-gfm_auto_identifiers
 // https://github.com/jgm/pandoc/blob/83880b0dbc318703babfbb6905b1046fa48f1216/src/Text/Pandoc/Shared.hs#L539
 export function gfmAutoIdentifier(text: string, asciify: boolean) {
-
   if (asciify) {
     text = pandocAsciify(text);
   }
 
   return text
-    .replace(/[!"#$%&')*+,\.\/:;<=>?@\[\\\]^`{|}~]/g, '')  // filterPunct (all but underscore and hyphen)
-    .replace(/\s/g, '-')       // spaceToDash
-    .toLowerCase();               // toLower 
+    .replace(/[!"#$%&')*+,\.\/:;<=>?@\[\\\]^`{|}~]/g, '') // filterPunct (all but underscore and hyphen)
+    .replace(/\s/g, '-') // spaceToDash
+    .toLowerCase(); // toLower
 }
-
 
 // https://github.com/jgm/pandoc/blob/a5fa55969f1b4afc0ca3e38be50b69c65d43a460/src/Text/Pandoc/Asciify.hs
 export function pandocAsciify(text: string) {
-
   const chars: number[] = [];
   const len = text.length;
   let newch;
@@ -103,7 +101,6 @@ export function pandocAsciify(text: string) {
         break;
 
       case 200:
-      case 201:
       case 201:
       case 203:
       case 274:
@@ -263,9 +260,6 @@ export function pandocAsciify(text: string) {
       case 218:
       case 219:
       case 220:
-      case 340:
-      case 342:
-      case 344:
       case 360:
       case 362:
       case 364:
@@ -607,17 +601,14 @@ export function pandocAsciify(text: string) {
       case 8815:
         newch = '>';
         break;
-
     }
     if (newch) {
       chars.push(newch.charCodeAt(0));
     } else {
       chars.push(ch);
     }
-
   }
 
   // return string
   return String.fromCharCode(...chars);
 }
-

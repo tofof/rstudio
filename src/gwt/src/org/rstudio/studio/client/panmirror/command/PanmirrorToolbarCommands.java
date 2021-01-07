@@ -1,7 +1,7 @@
 /*
  * PanmirrorToolbarCommands.java
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -19,13 +19,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import org.rstudio.core.client.Debug;
+import org.rstudio.core.client.StringUtil;
+import org.rstudio.studio.client.palette.model.CommandPaletteEntryProvider;
 import org.rstudio.studio.client.palette.model.CommandPaletteEntrySource;
 import org.rstudio.studio.client.palette.model.CommandPaletteItem;
 
 import com.google.gwt.aria.client.MenuitemRole;
 import com.google.gwt.aria.client.Roles;
+import org.rstudio.studio.client.palette.ui.CommandPalette;
 
-public class PanmirrorToolbarCommands implements CommandPaletteEntrySource
+public class PanmirrorToolbarCommands implements CommandPaletteEntryProvider
 { 
    public PanmirrorToolbarCommands(PanmirrorCommand[] commands)
    {
@@ -47,6 +51,7 @@ public class PanmirrorToolbarCommands implements CommandPaletteEntrySource
       add(PanmirrorCommands.Superscript, "Superscript");
       add(PanmirrorCommands.Subscript, "Subscript");
       add(PanmirrorCommands.Smallcaps, "Small Caps");
+      add(PanmirrorCommands.Underline, "Underline", icons.UNDERLINE);
       add(PanmirrorCommands.Span, "Span...");
       add(PanmirrorCommands.Paragraph, "Normal", Roles.getMenuitemradioRole());
       add(PanmirrorCommands.Heading1, "Heading 1", Roles.getMenuitemradioRole());
@@ -82,7 +87,7 @@ public class PanmirrorToolbarCommands implements CommandPaletteEntrySource
       add(PanmirrorCommands.StanCodeChunk, "Stan");
 
       // lists
-      add(PanmirrorCommands.BulletList, "Bullet List", Roles.getMenuitemcheckboxRole(), icons.BULLET_LIST);
+      add(PanmirrorCommands.BulletList, "Bulleted List", Roles.getMenuitemcheckboxRole(), icons.BULLET_LIST);
       add(PanmirrorCommands.OrderedList, "Numbered List", Roles.getMenuitemcheckboxRole(), icons.NUMBERED_LIST);
       add(PanmirrorCommands.TightList, "Tight List", Roles.getMenuitemcheckboxRole());
       add(PanmirrorCommands.ListItemSink, "Sink Item");
@@ -174,6 +179,29 @@ public class PanmirrorToolbarCommands implements CommandPaletteEntrySource
          }
       }
       return items;
+   }
+
+   @Override
+   public CommandPaletteItem getCommandPaletteItem(String id)
+   {
+      if (StringUtil.isNullOrEmpty(id))
+      {
+         return null;
+      }
+
+      PanmirrorCommandUI cmd = commandsUI_.get(id);
+      if (cmd == null)
+      {
+         Debug.logWarning("Command palette requested unknown command from visual editor: '" + id + "'");
+      }
+
+      return new PanmirrorCommandPaletteItem(cmd);
+   }
+
+   @Override
+   public String getProviderScope()
+   {
+      return CommandPalette.SCOPE_VISUAL_EDITOR;
    }
 
    private void add(String id, String menuText)

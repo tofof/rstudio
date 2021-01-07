@@ -1,7 +1,7 @@
 /*
  * escape_mark.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -12,7 +12,6 @@
  * AGPL (http://www.gnu.org/licenses/agpl-3.0.txt) for more details.
  *
  */
-
 
 import { EditorState, Transaction } from 'prosemirror-state';
 import { Schema } from 'prosemirror-model';
@@ -29,12 +28,12 @@ const extension: Extension = {
           if (state.selection.empty) {
             // if we are at the end of a parent text block and there are
             // marks stored in the state or active on the selection then
-            // clear the stored marks and insert a space. 
+            // clear the stored marks and insert a space.
             const $head = state.selection.$head;
             const parent = $head.node($head.depth);
             if (
               parent.type.isTextblock &&
-              (($head.parentOffset) === parent.textContent.length) &&
+              $head.parentOffset === parent.textContent.length &&
               ($head.marks().length > 0 || !!state.storedMarks)
             ) {
               if (dispatch) {
@@ -47,10 +46,10 @@ const extension: Extension = {
             }
           }
           return false;
-        }
+        },
       },
     ];
-  }
+  },
 };
 
 export default extension;

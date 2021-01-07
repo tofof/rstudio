@@ -1,7 +1,7 @@
 /*
  * completion.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -24,7 +24,6 @@ import { kInsertCompletionTransaction } from './transaction';
 export const kCompletionDefaultItemHeight = 22;
 export const kCompletionDefaultMaxVisible = 10;
 export const kCompletionDefaultWidth = 180;
-
 
 export interface CompletionContext {
   isPaste: boolean;
@@ -81,11 +80,13 @@ export interface CompletionHandler<T = any> {
   // completion view
   view: {
     // optional header component (will go inside a <th>)
-    header?: () => {
-      component: React.FC<CompletionHeaderProps> | React.ComponentClass<CompletionHeaderProps>;
-      height: number;
-      message?: string;
-    } | undefined;
+    header?: () =>
+      | {
+          component: React.FC<CompletionHeaderProps> | React.ComponentClass<CompletionHeaderProps>;
+          height: number;
+          message?: string;
+        }
+      | undefined;
 
     // react compontent type for viewing the item
     component: React.FC<T> | React.ComponentClass<T>;
@@ -158,7 +159,6 @@ export function completionsShareScope(handler: CompletionHandler, prevHandler?: 
 }
 
 export function performCompletionReplacement(tr: Transaction, pos: number, replacement: ProsemirrorNode | string) {
-
   // set selection to area we will be replacing
   tr.setSelection(new TextSelection(tr.doc.resolve(pos), tr.selection.$head));
 
@@ -178,5 +178,4 @@ export function performCompletionReplacement(tr: Transaction, pos: number, repla
 
   // mark the transaction as an completion insertion
   tr.setMeta(kInsertCompletionTransaction, true);
-
 }

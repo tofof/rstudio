@@ -1,7 +1,7 @@
 /*
  * RExec.cpp
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -47,6 +47,8 @@ namespace r {
 namespace exec {
    
 namespace {
+
+bool s_wasInterrupted;
 
 // create a scope for disabling any installed error handlers (e.g. recover)
 // we need to do this so that recover isn't invoked while we are running
@@ -260,6 +262,18 @@ core::Error executeSafely(boost::function<SEXP()> function, SEXP* pSEXP)
    {
       return Success();
    }
+}
+
+Error executeCallUnsafe(SEXP callSEXP,
+                        SEXP envirSEXP,
+                        SEXP *pResultSEXP,
+                        sexp::Protect *pProtect)
+{
+   return evaluateExpressionsUnsafe(callSEXP,
+                                    envirSEXP,
+                                    pResultSEXP,
+                                    pProtect,
+                                    EvalDirect);
 }
 
 Error executeStringUnsafe(const std::string& str,
@@ -531,6 +545,8 @@ bool interruptsPending()
    
 void setInterruptsPending(bool pending)
 {
+   setWasInterrupted(pending);
+   
 #ifdef _WIN32
    UserBreak = pending ? 1 : 0;
 #else
@@ -609,6 +625,15 @@ DisableDebugScope::~DisableDebugScope()
    }
 }
 
+bool getWasInterrupted()
+{
+   return s_wasInterrupted;
+}
+
+void setWasInterrupted(bool wasInterrupted)
+{
+   s_wasInterrupted = wasInterrupted;
+}
 
 } // namespace exec   
 } // namespace r

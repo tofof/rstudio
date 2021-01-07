@@ -1,7 +1,7 @@
 /*
  * math-commands.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -15,9 +15,8 @@
 
 import { EditorState, Transaction, Selection } from 'prosemirror-state';
 import { setTextSelection, findParentNodeOfType } from 'prosemirror-utils';
-import { toggleMark } from 'prosemirror-commands';
 
-import { ProsemirrorCommand, EditorCommandId } from '../../api/command';
+import { ProsemirrorCommand, EditorCommandId, toggleMarkType } from '../../api/command';
 import { canInsertNode } from '../../api/node';
 import { EditorUI } from '../../api/ui';
 import { OmniInsert, OmniInsertGroup } from '../../api/omni_insert';
@@ -44,7 +43,7 @@ function insertMathCommand(type: MathType, allowNewline: boolean) {
   return (state: EditorState, dispatch?: (tr: Transaction) => void) => {
     // enable/disable command
     const schema = state.schema;
-    if (!canInsertNode(state, schema.nodes.text) || !toggleMark(schema.marks.math)(state)) {
+    if (!canInsertNode(state, schema.nodes.text) || !toggleMarkType(schema.marks.math)(state)) {
       return false;
     }
 

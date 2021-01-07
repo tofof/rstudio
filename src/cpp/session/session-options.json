@@ -78,6 +78,7 @@
             "type": "string",
             "defaultValue": "www",
             "memberName": "wwwLocalPath_",
+            "isHidden": true,
             "description": "The relative path from the RStudio installation directory, or absolute path where web assets are stored."
          },
          {
@@ -85,6 +86,7 @@
             "memberName": "wwwSymbolMapsPath_",
             "type": "core::FilePath",
             "defaultValue": "www-symbolmaps",
+            "isHidden": true,
             "description": "The relative path from the RStudio installation directory, or absolute path, where symbol maps are stored."
          },
          {
@@ -118,6 +120,14 @@
             "defaultValue": false,
             "memberName": "verifySignatures_",
             "description": "Indicates whether or not to verify signatures on incoming requests. This is generally only used with Launcher sessions."
+         },
+         {
+            "name": {"constant": "kWwwResusePorts", "value": "www-reuse-ports"},
+            "memberName": "wwwReusePorts_",
+            "type": "bool",
+            "defaultValue": false,
+            "isHidden": true,
+            "description": "Whether or not to reuse last used bound ports when restarting a Launcher session."
          }
       ],
       "session": [
@@ -276,7 +286,7 @@
             "description": "Specifies whether or not package builds output to the package project folder."
          },
          {
-            "name": {"constant": "kRootPathSessionOption", "value": "session-url-path-prefix"},
+            "name": {"constant": "kRootPathSessionOption", "value": "session-root-path"},
             "memberName": "rootPath_",
             "isHidden": true,
             "type": "string",
@@ -449,6 +459,7 @@
             "memberName": "sessionLibraryPath_",
             "defaultValue": "R/library",
             "description": "Specifies the R library path.",
+            "isHidden": true,
             "isDeprecated": true
          },
          {
@@ -497,7 +508,7 @@
             "name": "r-compatible-graphics-engine-version",
             "type": "int",
             "memberName": "rCompatibleGraphicsEngineVersion_",
-            "defaultValue": 13,
+            "defaultValue": 14,
             "description": "Specifies the maximum graphics engine version that this version of RStudio is compatible with."
          },
          {
@@ -512,6 +523,7 @@
             "type": "bool",
             "memberName": "deprecatedRShellEscape_",
             "isDeprecated": true,
+            "isHidden": true,
             "defaultValue": false,
             "description": "Indicates whether or not to support shell escape."
          },
@@ -574,6 +586,7 @@
             "type": "core::FilePath",
             "memberName": "rpostbackPath_",
             "defaultValue": {"code": "kDefaultPostbackPath", "description": "bin/postback/rpostback"},
+            "isHidden": true,
             "description": "Specifies the path to the rpostback executable."
          },
          {
@@ -581,7 +594,7 @@
             "type": "core::FilePath",
             "memberName": "consoleIoPath_",
             "defaultValue": "bin/consoleio.exe",
-            "description": "Specifies the path to the consoleio executable."
+            "description": "Specifies the path to the consoleio executable (Windows-only)."
          },
          {
             "name": "external-gnudiff-path",
@@ -721,4 +734,3 @@
       ]
    }
 }
-

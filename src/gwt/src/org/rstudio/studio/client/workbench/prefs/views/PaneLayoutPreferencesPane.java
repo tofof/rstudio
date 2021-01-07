@@ -1,7 +1,7 @@
 /*
  * PaneLayoutPreferencesPane.java
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -191,7 +191,11 @@ public class PaneLayoutPreferencesPane extends PreferencesPane
       PaneConfig paneConfig = userPrefs.panes().getGlobalValue().cast();
       additionalColumnCount_ = paneConfig.getAdditionalSourceColumns();
 
-      add(new Label("Choose the layout of the panes in RStudio by selecting from the controls in each quadrant.", true));
+      add(new Label("Choose the layout of the panels in RStudio by selecting from the controls in" +
+         " each panel. Add up to three additional Source Columns to the left side of the layout. " +
+         "When a column is removed, all saved files within the column are closed and any unsaved " +
+         "files are moved to the main Source Pane.",
+         true));
 
       Toolbar columnToolbar = new Toolbar("Manage Column Display");
       columnToolbar.setStyleName(res_.styles().newSection());
@@ -241,13 +245,13 @@ public class PaneLayoutPreferencesPane extends PreferencesPane
       String[] visiblePanes = PaneConfig.getVisiblePanes();
 
       leftTop_ = new ListBox();
-      Roles.getListboxRole().setAriaLabelProperty(leftTop_.getElement(), "Top left quadrant");
+      Roles.getListboxRole().setAriaLabelProperty(leftTop_.getElement(), "Top left panel");
       leftBottom_ = new ListBox();
-      Roles.getListboxRole().setAriaLabelProperty(leftBottom_.getElement(), "Bottom left quadrant");
+      Roles.getListboxRole().setAriaLabelProperty(leftBottom_.getElement(), "Bottom left panel");
       rightTop_ = new ListBox();
-      Roles.getListboxRole().setAriaLabelProperty(rightTop_.getElement(), "Top right quadrant");
+      Roles.getListboxRole().setAriaLabelProperty(rightTop_.getElement(), "Top right panel");
       rightBottom_ = new ListBox();
-      Roles.getListboxRole().setAriaLabelProperty(rightBottom_.getElement(), "Bottom right quadrant");
+      Roles.getListboxRole().setAriaLabelProperty(rightBottom_.getElement(), "Bottom right panel");
       visiblePanes_ = new ListBox[]{leftTop_, leftBottom_, rightTop_, rightBottom_};
       for (ListBox lb : visiblePanes_)
       {

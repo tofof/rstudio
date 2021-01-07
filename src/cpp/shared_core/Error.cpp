@@ -1,7 +1,7 @@
 /*
  * Error.cpp
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant to the terms of a commercial license agreement
  * with RStudio, then this program is licensed to you under the following terms:
@@ -553,6 +553,22 @@ Error systemError(const std::system_error& in_error,
    return error;
 }
 
+Error systemCallError(const std::string& in_function,
+                      int in_code,
+                      const ErrorLocation& in_location)
+{
+   return systemCallError(in_function, in_code, systemErrorMessage(in_code), in_location);
+}
+
+Error systemCallError(const std::string& in_function,
+                      int in_code,
+                      const std::string& in_message,
+                      const ErrorLocation& in_location)
+{
+   std::string message = in_function + ": " + in_message;
+   return Error("system", in_code, message, in_location);
+}
+
 Error unknownError(const std::string& in_message, const ErrorLocation&  in_location)
 {
    return Error(
@@ -595,6 +611,13 @@ std::string errorMessage(const core::Error& error)
       msg = error.getName();
    }
    return msg;
+}
+
+std::string systemErrorMessage(int code)
+{
+   using namespace boost::system;
+   auto errc = error_code(code, system_category());
+   return errc.message();
 }
 
 

@@ -1,6 +1,6 @@
 /* UserPrefValues.cpp
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -411,6 +411,19 @@ bool UserPrefValues::continueCommentsOnNewline()
 core::Error UserPrefValues::setContinueCommentsOnNewline(bool val)
 {
    return writePref("continue_comments_on_newline", val);
+}
+
+/**
+ * Whether web links in comments are clickable.
+ */
+bool UserPrefValues::highlightWebLink()
+{
+   return readPref<bool>("highlight_web_link");
+}
+
+core::Error UserPrefValues::setHighlightWebLink(bool val)
+{
+   return writePref("highlight_web_link", val);
 }
 
 /**
@@ -2792,6 +2805,32 @@ core::Error UserPrefValues::setSaveRetryTimeout(int val)
    return writePref("save_retry_timeout", val);
 }
 
+/**
+ * Whether the Insert Pipe Operator command should insert the native R pipe operator, |>
+ */
+bool UserPrefValues::insertNativePipeOperator()
+{
+   return readPref<bool>("insert_native_pipe_operator");
+}
+
+core::Error UserPrefValues::setInsertNativePipeOperator(bool val)
+{
+   return writePref("insert_native_pipe_operator", val);
+}
+
+/**
+ * Whether to keep track of recently used commands in the Command Palette
+ */
+bool UserPrefValues::commandPaletteMru()
+{
+   return readPref<bool>("command_palette_mru");
+}
+
+core::Error UserPrefValues::setCommandPaletteMru(bool val)
+{
+   return writePref("command_palette_mru", val);
+}
+
 std::vector<std::string> UserPrefValues::allKeys()
 {
    return std::vector<std::string>({
@@ -2825,6 +2864,7 @@ std::vector<std::string> UserPrefValues::allKeys()
       kShowInvisibles,
       kShowIndentGuides,
       kContinueCommentsOnNewline,
+      kHighlightWebLink,
       kEditorKeybindings,
       kInsertMatching,
       kInsertSpacesAroundEquals,
@@ -3008,6 +3048,8 @@ std::vector<std::string> UserPrefValues::allKeys()
       kPythonVersion,
       kPythonPath,
       kSaveRetryTimeout,
+      kInsertNativePipeOperator,
+      kCommandPaletteMru,
    });
 }
    

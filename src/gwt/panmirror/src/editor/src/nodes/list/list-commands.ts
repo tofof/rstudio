@@ -1,7 +1,7 @@
 /*
  * list-commands.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -32,7 +32,7 @@ export class ListCommand extends NodeCommand {
     listType: NodeType,
     listItemType: NodeType,
     omniInsert: OmniInsert,
-    prefs: EditorUIPrefs
+    prefs: EditorUIPrefs,
   ) {
     super(id, keymap, listType, {}, autoJoin(toggleList(listType, listItemType, prefs), [listType.name]), omniInsert);
   }

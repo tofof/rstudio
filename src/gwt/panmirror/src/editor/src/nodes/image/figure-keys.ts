@@ -1,7 +1,7 @@
 /*
  * figure-keys.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -153,8 +153,6 @@ function arrowHandler(dir: 'up' | 'down' | 'left' | 'right') {
     } else if (selection.empty && view && view.endOfTextblock(dir)) {
       // compute side offset
       const side = dir === 'left' || dir === 'up' ? -1 : 1;
-
-
 
       // get selection head
       const { $head } = selection;

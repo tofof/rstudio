@@ -1,7 +1,7 @@
 /*
  * cursor.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -16,8 +16,12 @@
 import { EditorState, Transaction, NodeSelection, Selection } from 'prosemirror-state';
 import { GapCursor } from 'prosemirror-gapcursor';
 
-export function handleArrowToAdjacentNode(nodePos: number, dir: number, state: EditorState, dispatch?: (tr: Transaction<any>) => void): boolean {
-
+export function handleArrowToAdjacentNode(
+  nodePos: number,
+  dir: number,
+  state: EditorState,
+  dispatch?: (tr: Transaction<any>) => void,
+): boolean {
   // resolve the node and position
   const node = state.doc.nodeAt(nodePos);
   if (!node) {
@@ -99,4 +103,3 @@ export function handleArrowToAdjacentNode(nodePos: number, dir: number, state: E
     return false;
   }
 }
-

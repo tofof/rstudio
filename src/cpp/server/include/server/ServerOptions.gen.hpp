@@ -1,7 +1,7 @@
 /*
  * ServerOptions.gen.hpp
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -168,15 +168,18 @@ protected:
    pDatabase->add_options()
       ("database-config-file",
       value<std::string>(&databaseConfigFile_)->default_value(""),
-      "If set, overrides the path to the /etc/rstudio/database.conf configuration file.");
+      "If set, overrides the path to the /etc/rstudio/database.conf configuration file.")
+      ("db-command",
+      value<std::string>(&dbCommand_)->default_value(std::string()),
+      "Executes the shell command specified injecting the current database configuration in the command.");
 
    pAuth->add_options()
       ("auth-none",
       value<bool>(&authNone_)->default_value(!core::system::effectiveUserIsRoot()),
-      "If set, disables multi-user authentication.")
+      "If set, disables multi-user authentication. Pro features may not work in this mode.")
       ("auth-validate-users",
       value<bool>(&authValidateUsers_)->default_value(core::system::effectiveUserIsRoot()),
-      "Indicates whether or not to validate that authenticated users exist on the target system.")
+      "Indicates whether or not to validate that authenticated users exist on the target system. Disabling this option may cause issues to start or to run a session.")
       ("auth-stay-signed-in-days",
       value<int>(&authStaySignedInDays_)->default_value(30),
       "The number of days to keep a user signed in when using the \"Stay Signed In\" option. Will only take affect when auth-timeout-minutes is 0 (disabled).")
@@ -260,6 +263,7 @@ public:
    std::string rsessionConfigFile() const { return rsessionConfigFile_; }
    int rsessionProxyMaxWaitSeconds() const { return rsessionProxyMaxWaitSeconds_; }
    std::string databaseConfigFile() const { return databaseConfigFile_; }
+   std::string dbCommand() const { return dbCommand_; }
    bool authNone() const { return authNone_; }
    bool authValidateUsers() const { return authValidateUsers_; }
    int authStaySignedInDays() const { return authStaySignedInDays_; }
@@ -311,6 +315,7 @@ protected:
    int deprecatedStackLimitMb_;
    int deprecatedUserProcessLimit_;
    std::string databaseConfigFile_;
+   std::string dbCommand_;
    bool authNone_;
    bool authValidateUsers_;
    int authStaySignedInDays_;

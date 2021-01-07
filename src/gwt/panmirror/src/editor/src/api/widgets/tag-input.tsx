@@ -1,7 +1,7 @@
 /*
  * tag-input.tsx
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -13,15 +13,15 @@
  *
  */
 
-import React from "react";
+import React from 'react';
 
-import { WidgetProps } from "./react";
+import { WidgetProps } from './react';
 
-import { EditorUI } from "../ui";
+import { EditorUI } from '../ui';
 
 import './tag-input.css';
-import { TextInput } from "./text";
-import { kAlertTypeError } from "../ui-dialogs";
+import { TextInput } from './text';
+import { kAlertTypeError } from '../ui-dialogs';
 
 // Item representing a tag entry
 // The key remains stable even if the tag is edited
@@ -40,13 +40,32 @@ interface TagInputProps extends WidgetProps {
   onTagValidate?: (key: string, text: string) => string | null;
   ui: EditorUI;
   placeholder?: string;
+  maxDisplayCharacters?: number;
 }
 
 export const TagInput = React.forwardRef<HTMLDivElement, TagInputProps>((props, ref) => {
-  return (<div style={props.style} className='pm-tag-input-container' ref={ref}>
-    {props.tags.length === 0 ? <div className='pm-tag-input-placeholder'><div className='pm-placeholder-text-color'>{props.placeholder}</div></div> : undefined}
-    {props.tags.map(tag => (<Tag key={tag.key} tag={tag} onTagDeleted={props.onTagDeleted} onTagChanged={props.onTagChanged} onTagValidate={props.onTagValidate} ui={props.ui} />))}
-  </div >);
+  return (
+    <div style={props.style} className="pm-tag-input-container" ref={ref}>
+      {props.tags.length === 0 ? (
+        <div className="pm-tag-input-placeholder">
+          <div className="pm-placeholder-text-color">{props.placeholder}</div>
+        </div>
+      ) : (
+        undefined
+      )}
+      {props.tags.map(tag => (
+        <Tag
+          key={tag.key}
+          tag={tag}
+          onTagDeleted={props.onTagDeleted}
+          onTagChanged={props.onTagChanged}
+          onTagValidate={props.onTagValidate}
+          ui={props.ui}
+          maxDisplayCharacters={props.maxDisplayCharacters}
+        />
+      ))}
+    </div>
+  );
 });
 
 interface TagProps extends WidgetProps {
@@ -55,10 +74,10 @@ interface TagProps extends WidgetProps {
   onTagChanged: (key: string, text: string) => void;
   onTagValidate?: (key: string, text: string) => string | null;
   ui: EditorUI;
+  maxDisplayCharacters?: number;
 }
 
 const Tag: React.FC<TagProps> = props => {
-
   const [editing, setEditing] = React.useState<boolean>(false);
   const [editingText, setEditingText] = React.useState<string>(props.tag.displayText);
   const [displayText, setDisplayText] = React.useState<string>(props.tag.displayText);
@@ -122,10 +141,13 @@ const Tag: React.FC<TagProps> = props => {
       const validationMessage = props.onTagValidate(props.tag.key, editingText);
       if (validationMessage !== null) {
         showingValidationError.current = true;
-        props.ui.dialogs.alert(
-          props.ui.context.translateText(validationMessage),
-          props.ui.context.translateText("Validation Error"),
-          kAlertTypeError).then(() => {
+        props.ui.dialogs
+          .alert(
+            props.ui.context.translateText(validationMessage),
+            props.ui.context.translateText('Validation Error'),
+            kAlertTypeError,
+          )
+          .then(() => {
             editTextInput.current?.focus();
             showingValidationError.current = false;
           });
@@ -147,7 +169,6 @@ const Tag: React.FC<TagProps> = props => {
   };
 
   const cancelTagEdit = () => {
-
     // Halt editing
     setEditing(false);
 
@@ -192,21 +213,50 @@ const Tag: React.FC<TagProps> = props => {
     setEditingText(edittedText);
   };
 
-  return <div key={props.tag.displayText} className='pm-tag-input-tag pm-block-border-color'>
-    <img src={props.ui.images.widgets?.tag_delete} onClick={onDeleteClick} onKeyPress={onDeleteKeyPress} className='pm-tag-input-delete-image' tabIndex={0} />
-    <div className={`pm-tag-input-text ${props.tag.isEditable ? 'pm-tag-input-text-edittable' : undefined}`}>
-      {!editing ?
-        <div onClick={onEditClick} className='pm-tag-input-text-raw pm-text-color'>{props.tag.displayPrefix}{displayText}</div> :
-        <TextInput
-          width={`${editingText.length}ch`}
-          ref={editTextInput}
-          className='pm-tag-input-text-edit'
-          value={editingText}
-          onChange={handleEditChange}
-          onKeyDown={handleEditKeyDown}
-          onBlur={handleEditBlur} />
-      }
+  return (
+    <div key={props.tag.displayText} className="pm-tag-input-tag pm-block-border-color">
+      <img
+        src={props.ui.images.widgets?.tag_delete}
+        onClick={onDeleteClick}
+        onKeyPress={onDeleteKeyPress}
+        className="pm-tag-input-delete-image"
+        tabIndex={0}
+      />
+      <div className={`pm-tag-input-text ${props.tag.isEditable ? 'pm-tag-input-text-edittable' : undefined}`}>
+        {!editing ? (
+          <div onClick={onEditClick} className="pm-tag-input-text-raw pm-text-color">
+            {props.tag.displayPrefix}
+            {props.maxDisplayCharacters ? 
+              displayText.length > props.maxDisplayCharacters ? displayText.substr(0, props.maxDisplayCharacters - 1) + '…' : displayText: 
+              displayText}
+          </div>
+        ) : (
+          <TextInput
+            width={props.maxDisplayCharacters ? 
+                 `${Math.min(props.maxDisplayCharacters, editingText.length)}ch` :
+                 `${editingText.length}ch`
+                }
+            ref={editTextInput}
+            className="pm-tag-input-text-edit"
+            value={editingText}
+            onChange={handleEditChange}
+            onKeyDown={handleEditKeyDown}
+            onBlur={handleEditBlur}
+          />
+        )}
+      </div>
+      {props.tag.isEditable ? (
+        <img
+          src={props.ui.images.widgets?.tag_edit}
+          className="pm-tag-input-edit-image"
+          onClick={onEditClick}
+          onKeyPress={onEditKeyPress}
+          tabIndex={0}
+          ref={editImage}
+        />
+      ) : (
+        undefined
+      )}
     </div>
-    {props.tag.isEditable ? <img src={props.ui.images.widgets?.tag_edit} className='pm-tag-input-edit-image' onClick={onEditClick} onKeyPress={onEditKeyPress} tabIndex={0} ref={editImage} /> : undefined}
-  </div>;
+  );
 };

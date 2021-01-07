@@ -1,7 +1,7 @@
 /*
  * SessionRMarkdown.cpp
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -54,6 +54,7 @@
 #include <session/projects/SessionProjects.hpp>
 #include <session/prefs/UserPrefs.hpp>
 
+#include "SessionBlogdown.hpp"
 #include "RMarkdownPresentation.hpp"
 
 #define kRmdOutput "rmd_output"
@@ -202,7 +203,18 @@ FilePath extractOutputFileCreated(const FilePath& inputFile,
 
             // if the path looks absolute, use it as-is; otherwise, presume
             // it to be in the same directory as the input file
-            return inputFile.getParent().completePath(fileName);
+            FilePath outputFile = inputFile.getParent().completePath(fileName);
+
+            // if it's a plain .md file and we are in a Hugo project then
+            // don't preview it (as the user is likely running a Hugo preview)
+            if (outputFile.getExtensionLowerCase() == ".md" &&
+                session::modules::rmarkdown::blogdown::isHugoProject())
+            {
+               return FilePath();
+            }
+
+            // return the output file
+            return outputFile;
          }
       }
    }
@@ -275,8 +287,8 @@ std::string assignOutputUrl(const std::string& outputFile)
    {
       std::string renderedPath;
       Error error = r::exec::RFunction(".rs.bookdown.renderedOutputPath")
-            .addParam(websiteDir.getAbsolutePath())
-            .addParam(outputPath.getAbsolutePath())
+            .addUtf8Param(websiteDir)
+            .addUtf8Param(outputPath)
             .callUtf8(&renderedPath);
       if (error)
          LOG_ERROR(error);
@@ -513,6 +525,16 @@ private:
 
          // provide render_args in render_args parameter
          renderOptions = "render_args = list(" + renderOptions + ")";
+      }
+
+      // fallback for non-function
+      r::sexp::Protect rProtect;
+      SEXP renderFuncSEXP;
+      error = r::exec::evaluateString(renderFunc, &renderFuncSEXP, &rProtect);
+      if (error || !r::sexp::isFunction((renderFuncSEXP)))
+      {
+         boost::format fmt("(function(input, ...) { system(paste0(\"%1% '\", input, \"'\")) })");
+         renderFunc = boost::str(fmt % renderFunc);
       }
 
       // render command

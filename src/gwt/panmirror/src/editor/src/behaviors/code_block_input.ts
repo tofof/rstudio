@@ -1,7 +1,7 @@
 /*
  * code_block_input.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -99,7 +99,6 @@ function codeBlockInputRuleEnter(pandocExtensions: PandocExtensions, fencedAttri
 
     // execute
     if (dispatch) {
-
       // eslint-disable-next-line no-useless-escape
       const lang = langAttrib.replace(/^[\.=]/, '');
 

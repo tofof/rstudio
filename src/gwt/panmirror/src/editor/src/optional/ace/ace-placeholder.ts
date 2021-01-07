@@ -1,7 +1,7 @@
 /*
  * ace-placeholder.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -20,15 +20,12 @@
  * computations.
  */
 export class AcePlaceholder {
-
   private readonly element: HTMLElement;
 
-  constructor(
-    content: string
-  ) {
-    const ele = document.createElement("pre");
+  constructor(content: string) {
+    const ele = document.createElement('pre');
     ele.innerText = content;
-    ele.className = "ace_editor";
+    ele.className = 'ace_editor';
     this.element = ele;
   }
 

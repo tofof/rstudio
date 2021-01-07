@@ -1,7 +1,7 @@
 /*
  * link-headings.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -36,11 +36,7 @@ export function linkHeadingsPostprocessor(doc: ProsemirrorNode) {
       const attrs = getMarkAttrs(doc, markRange, schema.marks.link);
       const linkText = doc.textBetween(markRange.from, markRange.to);
       const matchedHeading = headings.find(heading => {
-        return (
-          equalsIgnoreCase(heading.node.textContent, linkText) &&
-          !attrs.title &&
-          (attrs.href === '#')
-        );
+        return equalsIgnoreCase(heading.node.textContent, linkText) && !attrs.title && attrs.href === '#';
       });
       if (matchedHeading) {
         // point the link mark at this heading by name

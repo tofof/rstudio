@@ -1,7 +1,7 @@
 /*
  * datacite.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -13,9 +13,8 @@
  *
  */
 
-
 export interface DataCiteResult {
-  status: "ok" | "notfound" | "nohost" | "error";
+  status: 'ok' | 'notfound' | 'nohost' | 'error';
   message: DataCiteRecord[] | null;
   error: string;
 }
@@ -40,7 +39,6 @@ export interface DataCiteServer {
 }
 
 export function suggestCiteId(record: DataCiteRecord): string {
-
   // Try to use the last name (or the first name)
   let suggestedId = '';
   if (record.creators && record.creators.length > 0) {
@@ -53,4 +51,3 @@ export function suggestCiteId(record: DataCiteRecord): string {
   }
   return suggestedId;
 }
-

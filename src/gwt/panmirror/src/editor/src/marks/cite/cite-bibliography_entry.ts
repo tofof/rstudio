@@ -1,7 +1,7 @@
 /*
  * cite-bibliography_entry.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -49,9 +49,6 @@ export function entryForSource(source: BibliographySource, ui: EditorUI, forceLi
     authorsFormatter,
     issuedDateFormatter,
     image: imageForType(ui.images, source.type)[ui.prefs.darkMode() && !forceLightMode ? 1 : 0],
-    imageAdornment: source.providerKey === kZoteroProviderKey ? ui.images.citations?.zoteroOverlay : undefined
+    imageAdornment: source.providerKey === kZoteroProviderKey ? ui.images.citations?.zoteroOverlay : undefined,
   };
 }
-
-
-

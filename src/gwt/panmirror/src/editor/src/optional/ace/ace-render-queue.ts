@@ -1,7 +1,7 @@
 /*
  * ace-render-queue.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -36,23 +36,26 @@ export class AceRenderQueue {
   constructor(private events: EditorEvents) {
     // Begin listening for scroll and update events so we can manage the queue
     // accordingly
-    this.subscriptions.push(events.subscribe(ScrollEvent, () => {
-      this.onScroll();
-    }));
-    this.subscriptions.push(events.subscribe(UpdateEvent, () => {
-      this.onUpdate();
-    }));
+    this.subscriptions.push(
+      events.subscribe(ScrollEvent, () => {
+        this.onScroll();
+      }),
+    );
+    this.subscriptions.push(
+      events.subscribe(UpdateEvent, () => {
+        this.onUpdate();
+      }),
+    );
   }
 
   /**
    * Sets (or replaces) the scroll container hosting the render queue. The
    * scroll container is used to prioritize the queue (i.e. objects in the
    * viewport or close to it are to be given more priority).
-   * 
+   *
    * @param container The HTML element of the scroll container
    */
   public setContainer(container: HTMLElement) {
-
     // Skip if we're already looking at this container
     if (this.container === container) {
       return;
@@ -68,27 +71,30 @@ export class AceRenderQueue {
 
     // Create intersection observer to ensure that we don't needlessly churn
     // through renders while offscreen.
-    this.observer = new IntersectionObserver((entries: IntersectionObserverEntry[]) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting && !this.visible) {
-          // We just became visible; process the render queue now.
-          this.visible = true;
-          this.processRenderQueue();
-        }
-        if (!entry.isIntersecting && this.visible) {
-          // We just lost visibility; end processing of the render queue. (Note
-          // that we only do this when connected to the DOM as another reason
-          // the element can become invisible is ProseMirror swapping it out
-          // internally.)
-          if (this.container?.parentElement) {
-            this.visible = false;
-            this.cancelTimer();
+    this.observer = new IntersectionObserver(
+      (entries: IntersectionObserverEntry[]) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && !this.visible) {
+            // We just became visible; process the render queue now.
+            this.visible = true;
+            this.processRenderQueue();
+          }
+          if (!entry.isIntersecting && this.visible) {
+            // We just lost visibility; end processing of the render queue. (Note
+            // that we only do this when connected to the DOM as another reason
+            // the element can become invisible is ProseMirror swapping it out
+            // internally.)
+            if (this.container?.parentElement) {
+              this.visible = false;
+              this.cancelTimer();
+            }
           }
         }
-      }
-    }, {
-      root: null
-    });
+      },
+      {
+        root: null,
+      },
+    );
 
     // Begin observing intersection events in container
     this.observer.observe(container);
@@ -211,7 +217,8 @@ export class AceRenderQueue {
     // accumulate when NodeViews are added to the render queue but replaced
     // (by a document rebuild) before they have a chance to render.
     let view: AceNodeView | undefined;
-    while (view === null || view === undefined || view.getPos() === undefined) {
+    while ((view === null || view === undefined || view.getPos() === undefined) &&
+           this.renderQueue.length > 0) {
       view = this.renderQueue.shift();
     }
 
@@ -222,8 +229,8 @@ export class AceRenderQueue {
 
     if (this.renderQueue.length > 0) {
       // There are still remaining editors to be rendered, so process again on
-      // the next event loop. 
-      // 
+      // the next event loop.
+      //
       // If these editors are near the viewport, render them as soon as
       // possible; otherwise, let the render proceed at a slower pace to
       // increase responsiveness.
@@ -272,8 +279,13 @@ export class AceRenderQueue {
     // Cancel any pending renders
     this.cancelTimer();
 
+    // Clear any pending update timer
+    if (this.updateTimer !== 0) {
+      window.clearTimeout(this.updateTimer);
+    }
+
     // Remove event subscriptions
-    this.subscriptions.forEach((unsub) => unsub());
+    this.subscriptions.forEach(unsub => unsub());
 
     // Clean up resize observer
     if (this.observer) {
@@ -281,4 +293,3 @@ export class AceRenderQueue {
     }
   }
 }
-

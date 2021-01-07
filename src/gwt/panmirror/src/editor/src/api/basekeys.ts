@@ -1,7 +1,7 @@
 /*
  * basekeys.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -54,14 +54,14 @@ export enum BaseKey {
   ModArrowDown = 'Mod-Down|Mod-ArrowDown',
   CtrlHome = 'Ctrl-Home',
   CtrlEnd = 'Ctrl-End',
-  ShiftArrowLeft = "Shift-Left|Shift-ArrowLeft",
-  ShiftArrowRight = "Shift-Right|Shift-ArrowRight",
-  AltArrowLeft = "Alt-Left|Alt-ArrowLeft",
-  AltArrowRight = "Alt-Right|Alt-ArrowRight",
-  CtrlArrowLeft = "Ctrl-Left|Ctrl-ArrowLeft",
-  CtrlArrowRight = "Ctrl-Right|Ctrl-ArrowRight",
-  CtrlShiftArrowLeft = "Ctrl-Shift-Left|Ctrl-Shift-ArrowLeft",
-  CtrlShiftArrowRight = "Ctrl-Shift-Right|Ctrl-Shift-ArrowRight",
+  ShiftArrowLeft = 'Shift-Left|Shift-ArrowLeft',
+  ShiftArrowRight = 'Shift-Right|Shift-ArrowRight',
+  AltArrowLeft = 'Alt-Left|Alt-ArrowLeft',
+  AltArrowRight = 'Alt-Right|Alt-ArrowRight',
+  CtrlArrowLeft = 'Ctrl-Left|Ctrl-ArrowLeft',
+  CtrlArrowRight = 'Ctrl-Right|Ctrl-ArrowRight',
+  CtrlShiftArrowLeft = 'Ctrl-Shift-Left|Ctrl-Shift-ArrowLeft',
+  CtrlShiftArrowRight = 'Ctrl-Shift-Right|Ctrl-Shift-ArrowRight',
 }
 
 export interface BaseKeyBinding {
@@ -81,6 +81,10 @@ export function baseKeysPlugin(keys: readonly BaseKeyBinding[]): Plugin {
     { key: BaseKey.Backspace, command: selectNodeBackward },
     { key: BaseKey.Backspace, command: joinBackward },
     { key: BaseKey.Backspace, command: deleteSelection },
+
+    // base tab key behavior (ignore)
+    { key: BaseKey.Tab, command: ignoreKey },
+    { key: BaseKey.ShiftTab, command: ignoreKey },
 
     // base delete key behaviors
     { key: BaseKey.Delete, command: selectNodeForward },
@@ -154,13 +158,17 @@ interface Coords {
   bottom: number;
 }
 
+function ignoreKey(state: EditorState, dispatch?: (tr: Transaction) => void) {
+  return true;
+}
+
 function homeKey(state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView) {
   const selection = state.selection;
   const editingNode = editingRootNode(selection);
   if (editingNode && dispatch && view) {
     const head = view.coordsAtPos(selection.head);
     const beginDocPos = editingNode.start;
-    for (let pos = (selection.from - 1); pos >= beginDocPos; pos--) {
+    for (let pos = selection.from - 1; pos >= beginDocPos; pos--) {
       const coords = view.coordsAtPos(pos);
       if (isOnPreviousLine(head, coords) || pos === beginDocPos) {
         const tr = state.tr;
@@ -179,7 +187,7 @@ function endKey(state: EditorState, dispatch?: (tr: Transaction) => void, view?:
   if (editingNode && dispatch && view) {
     const head = view.coordsAtPos(selection.head);
     const endDocPos = editingNode.start + editingNode.node.nodeSize;
-    for (let pos = (selection.from + 1); pos < endDocPos; pos++) {
+    for (let pos = selection.from + 1; pos < endDocPos; pos++) {
       const coords = view.coordsAtPos(pos);
       if (isOnNextLine(head, coords) || pos === endDocPos) {
         const tr = state.tr;
@@ -195,7 +203,7 @@ function endKey(state: EditorState, dispatch?: (tr: Transaction) => void, view?:
 // helpers to check for a y coordinate on a diffent line that the selection
 
 // y coorinates are sometimes off by 1 or 2 due to margin/padding (e.g. for
-// inline code spans or spelling marks) so the comparision only succeeds if 
+// inline code spans or spelling marks) so the comparision only succeeds if
 // the vertical extents of the two coords don't overlap. If this proves to
 // still have false positives, we could lookahead to the next a few dozen
 // positions to check if we ever "return to" the head's baseline--only a
@@ -208,7 +216,6 @@ function isOnNextLine(head: Coords, pos: Coords) {
 function isOnPreviousLine(head: Coords, pos: Coords) {
   return head.top > pos.bottom;
 }
-
 
 function arrowBodyNodeBoundary(dir: 'up' | 'down' | 'left' | 'right') {
   return (state: EditorState, dispatch?: (tr: Transaction<any>) => void, view?: EditorView) => {

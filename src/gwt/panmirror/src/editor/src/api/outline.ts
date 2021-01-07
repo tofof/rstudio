@@ -1,7 +1,7 @@
 /*
  * outline.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -26,6 +26,7 @@ export interface EditorOutlineItem {
   navigation_id: string;
   type: EditorOutlineItemType;
   level: number;
+  sequence: number;
   title: string;
   children: EditorOutlineItem[];
 }
@@ -51,7 +52,6 @@ export interface EditingOutlineLocation {
 }
 
 export function getEditingOutlineLocation(state: EditorState): EditingOutlineLocation {
-
   // traverse document outline to get base location info
   const itemsWithPos = getDocumentOutline(state).map(nodeWithPos => {
     const schema = state.schema;
@@ -61,7 +61,7 @@ export function getEditingOutlineLocation(state: EditorState): EditingOutlineLoc
       level: 0,
       title: '',
       active: false,
-      position: nodeWithPos.pos
+      position: nodeWithPos.pos,
     };
     if (node.type === schema.nodes.yaml_metadata) {
       item.type = kYamlMetadataOutlineItemType;
@@ -79,7 +79,7 @@ export function getEditingOutlineLocation(state: EditorState): EditingOutlineLoc
     }
     return {
       item,
-      pos: nodeWithPos.pos
+      pos: nodeWithPos.pos,
     };
   });
 
@@ -89,7 +89,7 @@ export function getEditingOutlineLocation(state: EditorState): EditingOutlineLoc
   const items: EditingOutlineLocationItem[] = [];
   for (let i = itemsWithPos.length - 1; i >= 0; i--) {
     const item = itemsWithPos[i].item;
-    if (!foundActive && (itemsWithPos[i].pos < state.selection.from)) {
+    if (!foundActive && itemsWithPos[i].pos < state.selection.from) {
       item.active = true;
       foundActive = true;
     }
@@ -104,7 +104,7 @@ export function getEditingOutlineLocation(state: EditorState): EditingOutlineLoc
 //  - yaml metadata blocks
 //  - top-level headings
 //  - rmd chunks at the top level or within a top-level list
-export function getDocumentOutline(state: EditorState) {
+export function getDocumentOutline(state: EditorState): NodeWithPos[] {
   // get top level body nodes
   const schema = state.schema;
   const bodyNodes = findTopLevelBodyNodes(state.doc, node => {
@@ -141,7 +141,6 @@ export function getDocumentOutline(state: EditorState) {
   // return outline nodes
   return outlineNodes;
 }
-
 
 export function getOutlineNodes(doc: ProsemirrorNode) {
   return findTopLevelBodyNodes(doc, isOutlineNode);

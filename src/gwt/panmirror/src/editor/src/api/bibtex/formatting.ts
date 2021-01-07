@@ -1,7 +1,7 @@
 /*
  * formatting.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -22,13 +22,13 @@ export interface FormattingTag {
 // Maps formatting tags/marks to the LaTeX replacements
 // When marks are applied to text nodes, these will be emitted in place of those marks
 export const FormattingTags: { [key: string]: FormattingTag } = {
-  'strong': { open: '\\textbf{', close: '}', verbatim: false },
-  'em': { open: '\\emph{', close: '}', verbatim: false },
-  'sub': { open: '\\textsubscript{', close: '}', verbatim: false },
-  'sup': { open: '\\textsuperscript{', close: '}', verbatim: false },
-  'nocase': { open: '{{', close: '}}', verbatim: false },
-  'smallcaps': { open: '\\textsc{', close: '}', verbatim: false },
-  'enquote': { open: '\\enquote{', close: '}', verbatim: false },
-  'math': { open: '$', close: '$', verbatim: false },
-  'url': { open: '\\url{', close: '}', verbatim: true }
+  strong: { open: '\\textbf{', close: '}', verbatim: false },
+  em: { open: '\\emph{', close: '}', verbatim: false },
+  sub: { open: '\\textsubscript{', close: '}', verbatim: false },
+  sup: { open: '\\textsuperscript{', close: '}', verbatim: false },
+  nocase: { open: '{{', close: '}}', verbatim: false },
+  smallcaps: { open: '\\textsc{', close: '}', verbatim: false },
+  enquote: { open: '\\enquote{', close: '}', verbatim: false },
+  math: { open: '$', close: '$', verbatim: false },
+  url: { open: '\\url{', close: '}', verbatim: true },
 };

@@ -1,7 +1,7 @@
 /*
  * button.tsx
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -45,7 +45,15 @@ export const LinkButton: React.FC<LinkButtonProps> = props => {
   };
 
   return (
-    <a href={props.text} tabIndex={0} onClick={onClick} onKeyDown={onKeyDown} title={props.title || props.text} className={className} style={style}>
+    <a
+      href={props.text}
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      title={props.title || props.text}
+      className={className}
+      style={style}
+    >
       {props.text}
     </a>
   );
@@ -67,7 +75,14 @@ export const ImageButton = React.forwardRef<HTMLButtonElement, ImageButtonProps>
     }
   };
   return (
-    <button onClick={onClick} title={props.title} className={className} style={props.style} ref={ref} tabIndex={props.tabIndex}>
+    <button
+      onClick={onClick}
+      title={props.title}
+      className={className}
+      style={props.style}
+      ref={ref}
+      tabIndex={props.tabIndex}
+    >
       <img src={props.image} alt={props.title} />
     </button>
   );
@@ -109,18 +124,22 @@ export interface OutlineButtonProps extends WidgetProps {
   tabIndex?: number;
 }
 
-export const OutlineButton = React.forwardRef<HTMLButtonElement, OutlineButtonProps>((props: OutlineButtonProps, ref) => {
-  const className = ['pm-outline-button', 'pm-input-button', 'pm-input-outline-button'].concat(props.classes || []).join(' ');
-  return (
-    <button
-      onClick={props.onClick}
-      type="button"
-      className={className}
-      style={props.style}
-      ref={ref}
-      tabIndex={props.tabIndex}
-    >
-      {props.title}
-    </button>
-  );
-});
+export const OutlineButton = React.forwardRef<HTMLButtonElement, OutlineButtonProps>(
+  (props: OutlineButtonProps, ref) => {
+    const className = ['pm-outline-button', 'pm-input-button', 'pm-input-outline-button']
+      .concat(props.classes || [])
+      .join(' ');
+    return (
+      <button
+        onClick={props.onClick}
+        type="button"
+        className={className}
+        style={props.style}
+        ref={ref}
+        tabIndex={props.tabIndex}
+      >
+        {props.title}
+      </button>
+    );
+  },
+);

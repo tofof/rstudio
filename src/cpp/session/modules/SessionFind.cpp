@@ -1,7 +1,7 @@
 /*
  * SessionFind.cpp
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -18,10 +18,10 @@
 #include <algorithm>
 #include <gsl/gsl>
 
-#include <boost/algorithm/string.hpp>
-#include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/bind/bind.hpp>
 
 #include <core/Exec.hpp>
 #include <core/StringUtils.hpp>
@@ -37,6 +37,7 @@
 #include <session/prefs/UserPrefs.hpp>
 
 using namespace rstudio::core;
+using namespace boost::placeholders;
 
 namespace rstudio {
 namespace session {
@@ -65,7 +66,7 @@ namespace {
 // This must be the same as MAX_COUNT in FindOutputPane.java
 const size_t MAX_COUNT = 1000;
 
-const size_t MAX_LINE_LENGTH = 1000;
+const size_t MAX_LINE_LENGTH = 3000;
 
 // Reflects the estimated current progress made in performing a replace
 class LocalProgress : public boost::noncopyable
@@ -517,7 +518,13 @@ private:
       {
          if (firstMatchOn > maxPreviewLength)
          {
-            *contents = contents->erase(0, firstMatchOn - 30);
+            std::string::iterator pos = contents->begin();
+            Error error = string_utils::utf8Advance(contents->begin(),
+                                                    firstMatchOn - 30,
+                                                    contents->end(),
+                                                    &pos);
+
+            contents->assign(&*pos);
             contents->insert(0, "...");
             int leadingCharactersErased = gsl::narrow_cast<int>(firstMatchOn - 33);
             json::Array newMatchOnArray;
@@ -576,7 +583,8 @@ private:
             error = setPermissions(tempReplaceFile_.getAbsolutePath(), filePermissions_);
 #endif
             if (!error)
-               error = tempReplaceFile_.move(FilePath(currentFile_));
+               error = tempReplaceFile_.move(FilePath(currentFile_), FilePath::MoveType::MoveCrossDevice, true);
+
             currentFile_.clear();
             if (error)
             {
@@ -1027,7 +1035,7 @@ private:
                                   &replaceMatchOn, &replaceMatchOff,
                                   &errorMessage);
                   lineInfo.decodedPreview = lineInfo.decodedContents;
-                  adjustForPreview(&lineInfo.decodedPreview, &matchOn, &matchOff);
+                  adjustForPreview(&lineInfo.decodedPreview, &replaceMatchOn, &replaceMatchOff);
                }
             }
 

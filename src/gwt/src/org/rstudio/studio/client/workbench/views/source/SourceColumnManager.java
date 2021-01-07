@@ -1,7 +1,7 @@
 /*
  * SourceColumnManager.java
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -18,7 +18,10 @@ import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.JsArray;
 import com.google.gwt.core.client.JsArrayString;
+import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.Element;
+import com.google.gwt.event.dom.client.FocusEvent;
+import com.google.gwt.event.dom.client.FocusHandler;
 import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
 import com.google.gwt.user.client.Command;
@@ -32,10 +35,11 @@ import org.rstudio.core.client.command.AppCommand;
 import org.rstudio.core.client.command.CommandBinder;
 import org.rstudio.core.client.command.Handler;
 import org.rstudio.core.client.dom.DomUtils;
+import org.rstudio.core.client.dom.WindowEx;
 import org.rstudio.core.client.files.FileSystemItem;
 import org.rstudio.core.client.js.JsObject;
 import org.rstudio.core.client.js.JsUtil;
-import org.rstudio.core.client.widget.ModalDialogBase;
+import org.rstudio.core.client.widget.ModalReturnFocus;
 import org.rstudio.core.client.widget.Operation;
 import org.rstudio.core.client.widget.OperationWithInput;
 import org.rstudio.core.client.widget.ProgressIndicator;
@@ -49,6 +53,7 @@ import org.rstudio.studio.client.common.dependencies.DependencyManager;
 import org.rstudio.studio.client.common.filetypes.*;
 import org.rstudio.studio.client.common.synctex.Synctex;
 import org.rstudio.studio.client.events.GetEditorContextEvent;
+import org.rstudio.studio.client.palette.model.CommandPaletteEntryProvider;
 import org.rstudio.studio.client.palette.model.CommandPaletteEntrySource;
 import org.rstudio.studio.client.palette.model.CommandPaletteItem;
 import org.rstudio.studio.client.rmarkdown.model.RmdChosenTemplate;
@@ -59,6 +64,7 @@ import org.rstudio.studio.client.server.ErrorLoggingServerRequestCallback;
 import org.rstudio.studio.client.server.ServerError;
 import org.rstudio.studio.client.server.ServerRequestCallback;
 import org.rstudio.studio.client.server.VoidServerRequestCallback;
+import org.rstudio.studio.client.server.model.DocumentCloseAllNoSaveEvent;
 import org.rstudio.studio.client.workbench.FileMRUList;
 import org.rstudio.studio.client.workbench.commands.Commands;
 import org.rstudio.studio.client.workbench.model.ClientState;
@@ -68,6 +74,7 @@ import org.rstudio.studio.client.workbench.model.helper.JSObjectStateValue;
 import org.rstudio.studio.client.workbench.prefs.model.UserPrefs;
 import org.rstudio.studio.client.workbench.prefs.model.UserState;
 import org.rstudio.studio.client.workbench.ui.PaneConfig;
+import org.rstudio.studio.client.workbench.ui.PaneManager;
 import org.rstudio.studio.client.workbench.ui.unsaved.UnsavedChangesDialog;
 import org.rstudio.studio.client.workbench.views.environment.events.DebugModeChangedEvent;
 import org.rstudio.studio.client.workbench.views.output.find.events.FindInFilesEvent;
@@ -95,6 +102,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Singleton
 public class SourceColumnManager implements CommandPaletteEntrySource,
                                             SourceExtendedTypeDetectedEvent.Handler,
+                                            DocumentCloseAllNoSaveEvent.Handler,
                                             DebugModeChangedEvent.Handler
 {
    public interface CPSEditingTargetCommand
@@ -202,6 +210,19 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
 
       events_.addHandler(SourceExtendedTypeDetectedEvent.TYPE, this);
       events_.addHandler(DebugModeChangedEvent.TYPE, this);
+      events_.addHandler(DocumentCloseAllNoSaveEvent.TYPE, this);
+
+      WindowEx.addFocusHandler(new FocusHandler()
+      {
+         @Override
+         public void onFocus(FocusEvent event)
+         {
+            Scheduler.get().scheduleDeferred(() ->
+            {
+               getActive().manageSaveCommands(true);
+            });
+         }
+      });
 
       events_.addHandler(EditingTargetSelectedEvent.TYPE,
          new EditingTargetSelectedEvent.Handler()
@@ -240,6 +261,25 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
             // tab gets focus
             commands_.activateSource().execute();
          }
+      });
+
+      userPrefs.allowSourceColumns().addValueChangeHandler(event ->
+      {
+         boolean enabled = userPrefs.allowSourceColumns().getValue();
+         commands_.focusSourceColumnSeparator().setEnabled(enabled);
+         commands_.focusSourceColumnSeparator().setVisible(enabled);
+
+         // The visibility of the following commands is in part determined by if we've reached 
+         // the max number of source columns allowed. PaneManager helps manage these commands so
+         // when modifying this code, update the change handler there as well.
+         boolean visible = enabled && columnList_.size() <= PaneManager.MAX_COLUMN_COUNT + 1;
+
+         commands_.newSourceColumn().setEnabled(enabled);
+         commands_.newSourceColumn().setVisible(visible);
+           
+         commands_.openSourceDocNewColumn().setEnabled(enabled);
+         commands_.openSourceDocNewColumn().setVisible(visible);
+         
       });
 
       sourceNavigationHistory_.addChangeHandler(event -> manageSourceNavigationCommands());
@@ -304,7 +344,7 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
 
       // register custom focus handler for case where ProseMirror
       // instance (or element within) had focus
-      ModalDialogBase.registerReturnFocusHandler((Element el) ->
+      ModalReturnFocus.registerReturnFocusHandler((Element el) ->
       {
          final String sourceClass = ClassIds.getClassId(ClassIds.SOURCE_PANEL);
          Element sourceEl = DomUtils.findParentElement(el, (Element parent) ->
@@ -328,17 +368,12 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
       return add(display, false);
    }
 
-   public ColumnName add(Source.Display display)
-   {
-      return add(display, false);
-   }
-
    public ColumnName add(String name, boolean updateState)
    {
       return add(name, false, updateState);
    }
 
-   public ColumnName add (String name, boolean activate, boolean updateState)
+   public ColumnName add(String name, boolean activate, boolean updateState)
    {
       Source.Display display = GWT.create(SourcePane.class);
       return add(name, computeAccessibleName(), display, activate, updateState);
@@ -423,16 +458,18 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
       activeColumn_ = column;
 
       // If the active column changed, we need to update the active editor
-      if (prevColumn != null && prevColumn != activeColumn_)
+      if (prevColumn != activeColumn_)
       {
-         prevColumn.setActiveEditor("");
-         if (!hasActiveEditor())
-            activeColumn_.setActiveEditor();
-         manageCommands(true);
+         if (prevColumn != null)
+         {
+            prevColumn.setActiveEditor("");
+            if (!hasActiveEditor())
+               activeColumn_.setActiveEditor();
+            manageCommands(true);
+         }
+         columnState_ = State.createState(JsUtil.toJsArrayString(getNames(false)),
+            activeColumn_ == null ? "" : activeColumn_.getName());
       }
-
-      columnState_ = State.createState(JsUtil.toJsArrayString(getNames(false)),
-                                       activeColumn_ == null ? "" : activeColumn_.getName());
    }
 
    private void setActiveDocId(String docId)
@@ -514,9 +551,9 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
    public SourceColumn getActive()
    {
       if (activeColumn_ != null &&
-         (!columnList_.get(0).asWidget().isAttached() ||
-          activeColumn_.asWidget().isAttached() &&
-          activeColumn_.asWidget().getOffsetWidth() > 0))
+         (columnList_.get(0).asWidget().getOffsetWidth() == 0 ||
+          (activeColumn_.asWidget().isAttached() &&
+           activeColumn_.asWidget().getOffsetWidth() > 0)))
          return activeColumn_;
       setActive(MAIN_SOURCE_NAME);
 
@@ -554,12 +591,12 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
 
    // see if there are additional command palette items made available
    // by the active editor
-   public List<CommandPaletteItem> getCommandPaletteItems()
+   public CommandPaletteEntryProvider getPaletteEntryProvider()
    {
       if (!hasActiveEditor())
          return null;
 
-      return activeColumn_.getActiveEditor().getCommandPaletteItems();
+      return activeColumn_.getActiveEditor().getPaletteEntryProvider();
    }
 
    public int getTabCount()
@@ -1063,6 +1100,12 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
          target.adaptToExtendedFileType(e.getExtendedType());
    }
 
+   @Override
+   public void onDocumentCloseAllNoSave(DocumentCloseAllNoSaveEvent event)
+   {
+      revertUnsavedTargets(() -> closeAllTabs(null, false, null));
+   }
+
    public void nextTabWithWrap()
    {
       switchToTab(1, true);
@@ -1327,16 +1370,17 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
       getActive().newDoc(fileType, contents, resultCallback);
    }
 
+   
    public void disownDoc(String docId)
    {
       SourceColumn column = findByDocument(docId);
-      column.closeDoc(docId);
+      disownDoc(docId, column, false);
    }
 
    // When dragging between columns/windows, we need to be specific about which column we're
    // removing the document from as it may exist in more than one column. If the column is null,
    // it is assumed that we are a satellite window and do not have multiple displays.
-   public void disownDocOnDrag(String docId, SourceColumn column)
+   public void disownDoc(String docId, SourceColumn column, boolean isDrag)
    {
       if (column == null)
       {
@@ -1349,7 +1393,8 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
          setNewActiveEditor = true;
       
       column.closeDoc(docId);
-      column.cancelTabDrag();
+      if (isDrag)
+         column.cancelTabDrag();
       if (setNewActiveEditor)
          column.setActiveEditor();
    }
@@ -1389,20 +1434,34 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
       findByDocument(target.getId()).closeTab(
          target.asWidget(), interactive, onClosed);
    }
-   
-   public void closeAllTabs(boolean excludeActive,
+
+   private void closeAllTabs(boolean interactive, Command onCompleted)
+   {
+      if (interactive)
+      {
+         // call into the interactive tab closer
+         commands_.closeAllSourceDocs().execute();
+      }
+      else
+      {
+         // revert unsaved targets and close tabs
+         revertUnsavedTargets(() -> closeAllTabs(false, onCompleted));
+      }
+   }
+
+   public void closeAllTabs(String excludeDocId,
                             boolean excludeMain,
                             Command onCompleted)
    {
-      columnList_.forEach((column) ->
-      {
-         closeAllTabs(column, excludeActive, excludeMain, onCompleted);
-      });
-         
+      // Columns may be deleted when all of their tabs are closed, so we iterate over the current
+      // names rather than the column list
+      ArrayList<String> columnNames = new ArrayList<>(getNames(false));
+      for (String name : columnNames)
+         closeAllTabs(getByName(name), excludeDocId, excludeMain, onCompleted);
    }
 
    public void closeAllTabs(SourceColumn column,
-                            boolean excludeActive,
+                            String excludeDocId,
                             boolean excludeMain,
                             Command onCompleted)
    {
@@ -1410,11 +1469,9 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
       {
          final CPSEditingTargetCommand command = (EditingTarget target, Command continuation) ->
          {
-            if (excludeActive &&
-                  (hasActiveEditor() && target == activeColumn_.getActiveEditor()))
+            if (!StringUtil.isNullOrEmpty(excludeDocId) && target == activeColumn_.getDoc(excludeDocId))
             {
                continuation.execute();
-               return;
             }
             else
             {
@@ -1481,29 +1538,37 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
       );
    }
 
+   /**
+    * Close all source documents
+    * 
+    * @param caption caption of command triggering this action
+    * @param sourceColumn source column to operate on or null to operate on all columns
+    * @param onCompleted callback when done or null
+    * @param excludeDocId docId of document to keep open and activate (or null to close all)
+    */
    public void closeAllLocalSourceDocs(String caption,
                                        SourceColumn sourceColumn,
                                        Command onCompleted,
-                                       final boolean excludeActive)
+                                       final String excludeDocId)
    {
-      // save active editor for exclusion (it changes as we close tabs)
-      final EditingTarget excludeEditor = (excludeActive) ? activeColumn_.getActiveEditor() :
-         null;
-
       // collect up a list of dirty documents
       ArrayList<EditingTarget> dirtyTargets = new ArrayList<>();
       // if sourceColumn is not provided, assume we are closing editors for every column
       if (sourceColumn == null)
          columnList_.forEach((column) ->
-           dirtyTargets.addAll(column.getDirtyEditors(excludeEditor)));
+           dirtyTargets.addAll(column.getDirtyEditors(excludeDocId)));
       else
-         dirtyTargets.addAll(sourceColumn.getDirtyEditors(excludeEditor));
+         dirtyTargets.addAll(sourceColumn.getDirtyEditors(excludeDocId));
 
       // create a command used to close all tabs
-      final Command closeAllTabsCommand = sourceColumn == null
-            ? () -> closeAllTabs(excludeActive, false, null)
-            : () -> closeAllTabs(sourceColumn, excludeActive, false, null);
-
+      final Command closeAllTabsCommand = () ->
+      {
+         if (sourceColumn == null) 
+            closeAllTabs(excludeDocId, false, null);
+         else
+            closeAllTabs(sourceColumn, excludeDocId, false, null);
+      };
+      
       saveEditingTargetsWithPrompt(caption,
          dirtyTargets,
          CommandUtil.join(closeAllTabsCommand, onCompleted),
@@ -1557,6 +1622,7 @@ public class SourceColumnManager implements CommandPaletteEntrySource,
                      public void onResponseReceived(final SourceDocument doc)
                      {
                         mainColumn.addTab(doc, Source.OPEN_INTERACTIVE);
+                        mainColumn.ensureVisible(true);
                      }
 
                      @Override

@@ -1,7 +1,7 @@
 /*
  * heading.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -21,13 +21,18 @@ import { findParentNode, findParentNodeOfType } from 'prosemirror-utils';
 import { PandocOutput, PandocToken, PandocTokenType } from '../api/pandoc';
 import { EditorCommandId, toggleBlockType, ProsemirrorCommand } from '../api/command';
 import { Extension, ExtensionContext } from '../api/extension';
-import { pandocAttrSpec, pandocAttrParseDom, pandocAttrToDomAttr, pandocAttrReadAST, pandocAttrParseText } from '../api/pandoc_attr';
+import {
+  pandocAttrSpec,
+  pandocAttrParseDom,
+  pandocAttrToDomAttr,
+  pandocAttrReadAST,
+  pandocAttrParseText,
+} from '../api/pandoc_attr';
 import { uuidv4 } from '../api/util';
 import { EditorUI } from '../api/ui';
 import { OmniInsert, OmniInsertGroup } from '../api/omni_insert';
 import { emptyNodePlaceholderPlugin } from '../api/placeholder';
 import { kHeadingLevel, kHeadingAttr, kHeadingChildren } from '../api/heading';
-
 
 const kHeadingLevels = [1, 2, 3, 4, 5, 6];
 
@@ -79,7 +84,7 @@ const extension = (context: ExtensionContext): Extension => {
               type: (schema: Schema) => schema.nodes.heading,
               offset: {
                 top: 5,
-                right: 5,
+                right: 10,
               },
             };
           } else {
@@ -142,7 +147,6 @@ const extension = (context: ExtensionContext): Extension => {
             navigation_id: uuidv4(),
           }),
         ),
-
       ];
 
       if (headingAttr) {
@@ -150,7 +154,6 @@ const extension = (context: ExtensionContext): Extension => {
       }
 
       return rules;
-
     },
 
     plugins: (schema: Schema) => {
@@ -170,7 +173,7 @@ function headingAttributeInputRule(schema: Schema) {
         const tr = state.tr;
         tr.setNodeMarkup(heading.pos, undefined, {
           ...heading.node.attrs,
-          ...attrs
+          ...attrs,
         });
         tr.deleteRange(start + 1, end);
         return tr;
@@ -180,7 +183,6 @@ function headingAttributeInputRule(schema: Schema) {
     } else {
       return null;
     }
-
   });
 }
 

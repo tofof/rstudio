@@ -1,7 +1,7 @@
 #
 # CMakeLists.txt
 #
-# Copyright (C) 2020 by RStudio, PBC
+# Copyright (C) 2021 by RStudio, PBC
 #
 # Unless you have received this program directly from RStudio pursuant
 # to the terms of a commercial license agreement with RStudio, then
@@ -35,14 +35,13 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/../../CMakeGlobals.txt")
 
 # global directives
 add_definitions(-DBOOST_ENABLE_ASSERT_HANDLER)
-add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
 
 # explicitly do not use new c++ 11 features for websocketpp
 # they currently do not work with our source
 add_definitions(-D_WEBSOCKETPP_NO_CPP11_MEMORY_=1)
 
-# the non-strict masking option was identified as a potentially crashing 
-# issue due to reliance on undefined C++ behavior, and was removed entirely in 
+# the non-strict masking option was identified as a potentially crashing
+# issue due to reliance on undefined C++ behavior, and was removed entirely in
 # websocketpp 0.7 (RStudio is using 0.5.1 at this time)
 add_definitions(-DWEBSOCKETPP_STRICT_MASKING)
 
@@ -115,7 +114,7 @@ if(UNIX)
          message(STATUS "Set CMAKE_OSX_DEPLOYMENT_TARGET to ${CMAKE_OSX_DEPLOYMENT_TARGET}")
       endif()
 
-      # Figure out what version of Mac OS X this is. Unfortunately 
+      # Figure out what version of Mac OS X this is. Unfortunately
       # CMAKE_SYSTEM_VERSION does not match uname -r, so get the Mac OS
       # version number another way.
       execute_process(COMMAND /usr/bin/sw_vers -productVersion OUTPUT_VARIABLE MACOSX_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -415,7 +414,13 @@ if(UNIX)
    find_library(DL_LIB "dl")
    find_library(SQLITE_LIB "sqlite3")
    get_filename_component(SQLITE_LIB "${SQLITE_LIB}" REALPATH)
-   find_library(PQ_LIB "pq")
+   if (APPLE)
+      # macdeployqt will only bundle dylibs, and find_library may resolve an xcode library spec file
+      # which won't get included in the bundle; hardcode path to ensure this doesn't happen
+      set(PQ_LIB "/usr/local/lib/libpq.dylib")
+    else()
+      find_library(PQ_LIB "pq")
+   endif()
    get_filename_component(PQ_LIB "${PQ_LIB}" REALPATH)
    list(APPEND SOCI_DEPENDENCIES ${SQLITE_LIB} ${PQ_LIB})
    list(APPEND SOCI_LIBRARIES ${SOCI_SQLITE_LIB} ${SOCI_POSTGRESQL_LIB} ${SQLITE_LIB} ${PQ_LIB} ${SOCI_CORE_LIB} ${DL_LIB})
@@ -475,7 +480,7 @@ if(WIN32)
         set(OPENSSL_BITNESS "64")
      endif()
 
-     set(OPENSSL_NAME "openssl-1.1.1d")
+     set(OPENSSL_NAME "openssl-1.1.1i")
      set(OPENSSL_ROOT_DIR "${RSTUDIO_WINDOWS_DEPENDENCIES_DIR}/${OPENSSL_NAME}/${OPENSSL_NAME}-${OPENSSL_BUILD_TYPE}-${OPENSSL_BITNESS}")
      set(OPENSSL_INCLUDE_DIR "${OPENSSL_ROOT_DIR}/include")
      set(OPENSSL_LIBRARY_DIR "${OPENSSL_ROOT_DIR}/lib")
@@ -565,7 +570,7 @@ else()
              COMMAND "${LIBR_EXECUTABLE}" "--vanilla" "--slave" "-e" "cat(as.character(getRversion()))"
              OUTPUT_VARIABLE LIBR_VERSION)
          if (LIBR_VERSION VERSION_LESS "3.0.1")
-            message(FATAL_ERROR "Minimum R version (${RSTUDIO_R_MAJOR_VERSION_REQUIRED}.${RSTUDIO_R_MINOR_VERSION_REQUIRED}.${RSTUDIO_R_PATCH_VERSION_REQUIRED}) not found.")
+            message(FATAL_ERROR "Minimum R version (${RSTUDIO_R_MAJOR_VERSION_REQUIRED}.${RSTUDIO_R_MINOR_VERSION_REQUIRED}.${RSTUDIO_R_PATCH_VERSION_REQUIRED}) not found; detected version is ${LIBR_VERSION}")
          endif()
       endif()
 

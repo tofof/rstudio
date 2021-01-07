@@ -1,7 +1,7 @@
 /*
  * rmd.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -16,6 +16,7 @@
 import { Node as ProsemirrorNode, NodeType } from 'prosemirror-model';
 import { EditorState, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
+import { GapCursor } from 'prosemirror-gapcursor';
 
 import {
   findParentNodeOfType,
@@ -40,7 +41,6 @@ export interface EditorRmdChunk {
 export type ExecuteRmdChunkFn = (chunk: EditorRmdChunk) => void;
 
 export function canInsertRmdChunk(state: EditorState) {
-
   // must either be at the body top level, within a list item, within a div, or within a
   // blockquote (and never within a table)
   const schema = state.schema;
@@ -52,8 +52,7 @@ export function canInsertRmdChunk(state: EditorState) {
     !selectionIsBodyTopLevel(state.selection) &&
     !within(schema.nodes.list_item) &&
     !within(schema.nodes.blockquote) &&
-    (schema.nodes.div && !within(schema.nodes.div))
-
+    schema.nodes.div && !within(schema.nodes.div)
   ) {
     return false;
   }
@@ -66,6 +65,7 @@ export function insertRmdChunk(chunkPlaceholder: string, rowOffset = 0, colOffse
     const schema = state.schema;
 
     if (
+      !(state.selection instanceof GapCursor) &&
       !toggleBlockType(schema.nodes.rmd_chunk, schema.nodes.paragraph)(state) &&
       !precedingListItemInsertPos(state.doc, state.selection)
     ) {
@@ -147,18 +147,29 @@ export function previousRmdChunks(state: EditorState, pos: number, filter?: (chu
 }
 
 export function rmdChunk(code: string): EditorRmdChunk | null {
-  const lines = code.trimLeft().split('\n');
+  let lines = code.trimLeft().split('\n');
   if (lines.length > 0) {
     const meta = lines[0].replace(/^[\s`\{]*(.*?)\}?\s*$/, '$1');
     const matchLang = meta.match(/\w+/);
     const lang = matchLang ? matchLang[0] : '';
 
+    // remove lines, other than the first, which are chunk delimiters (start
+    // with ```). these are generally unintended but can be accidentally
+    // introduced by e.g., pasting a chunk with its delimiters into visual mode,
+    // where delimiters are implicit. if these lines aren't removed, they create
+    // nested chunks that break parsing and can corrupt the document (see case
+    // 8452)
+    lines = lines.filter((line, idx) => {
+      if (idx === 0) {
+        return true;
+      }
+      return !line.startsWith("```");
+    });
+
     // a completely empty chunk (no second line) should be returned
     // as such. if it's not completely empty then append a newline
     // to the result of split (so that the chunk ends w/ a newline)
-    const chunkCode = lines.length > 1
-      ? (lines.slice(1).join('\n') + '\n')
-      : '';
+    const chunkCode = lines.length > 1 ? lines.slice(1).join('\n') + '\n' : '';
 
     return {
       lang,
@@ -184,12 +195,26 @@ export function mergeRmdChunks(chunks: EditorRmdChunk[]) {
   }
 }
 
+/**
+ * Attempts to extract the engine name and label from a chunk header.
+ * 
+ * @param text The chunk header, e.g. {r foo}
+ * @returns An object with `engine` and `label` properties, or null.
+ */
 export function rmdChunkEngineAndLabel(text: string) {
-  const match = text.match(/^\{([a-zA-Z0-9_]+)[\s,]+([a-zA-Z0-9/-]+)/);
+  // Match the engine and label with a regex
+  const match = text.match(/^\{([a-zA-Z0-9_]+)[\s,]+([a-zA-Z0-9/._='"-]+)/);
   if (match) {
+    // The second capturing group in the regex matches the first string after
+    // the engine. This might be a label (e.g., {r label}), but could also be
+    // a chunk option (e.g., {r echo=FALSE}). If it has an =, presume that it's
+    // an option.
+    if (match[2].indexOf("=") !== -1) {
+      return null;
+    }
     return {
       engine: match[1],
-      label: match[2]
+      label: match[2],
     };
   } else {
     return null;

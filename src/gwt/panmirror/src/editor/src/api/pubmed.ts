@@ -1,7 +1,7 @@
 /*
  * pubmed.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -13,11 +13,10 @@
  *
  */
 
-import { EditorUI } from "./ui";
-
+import { EditorUI } from './ui';
 
 export interface PubMedResult {
-  status: "ok" | "notfound" | "nohost" | "error";
+  status: 'ok' | 'notfound' | 'nohost' | 'error';
   message: PubMedDocument[] | null;
   error: string;
 }
@@ -39,7 +38,6 @@ export interface PubMedServer {
 }
 
 export function suggestCiteId(doc: PubMedDocument): string {
-
   // Try to get the last name. Prefer the sort first author,
   // but otherwise just use the first author (if any)
   let suggestedId = '';
@@ -78,5 +76,3 @@ export function imageForType(ui: EditorUI, pubTypes?: string[]): [string?, strin
       return [ui.images.citations?.other, ui.images.citations?.other_dark];
   }
 }
-
-

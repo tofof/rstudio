@@ -1,7 +1,7 @@
 /*
  * ace.css
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -54,7 +54,8 @@
  * invisible cursor position.
  */
 .pm-ace-editor-inactive .ace_marker-layer .ace_bracket,
-.pm-ace-editor-inactive .ace_marker-layer .ace_selection {
+.pm-ace-editor-inactive .ace_marker-layer .ace_selection,
+.pm-ace-editor-inactive .ace_marker-layer .ace_selected-word {
   display: none;
 }
 

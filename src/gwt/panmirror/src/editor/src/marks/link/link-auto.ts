@@ -1,7 +1,7 @@
 /*
  * link-auto.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -37,17 +37,19 @@ export function linkInputRules(autoLink: boolean, headingLink: boolean) {
     if (autoLink) {
       // plain link
       rules.push(
-        new InputRule(/(^|[^`])(https?:\/\/[^\s]+\w)[\.\?!]? $/, (state: EditorState, match: string[], start: number, end: number) => {
-
-          const tr = state.tr;
-          start = start + match[1].length;
-          end = start + match[2].length;
-          tr.addMark(start, end, schema.marks.link.create({ href: match[2] }));
-          tr.removeStoredMark(schema.marks.link);
-          tr.insertText(' ');
-          setTextSelection(end + 1)(tr);
-          return tr;
-        }),
+        new InputRule(
+          /(^|[^`])(https?:\/\/[^\s]+\w)[\.\?!\,)]* $/,
+          (state: EditorState, match: string[], start: number, end: number) => {
+            const tr = state.tr;
+            start = start + match[1].length;
+            const linkEnd = start + match[2].length;
+            tr.addMark(start, linkEnd, schema.marks.link.create({ href: match[2] }));
+            tr.removeStoredMark(schema.marks.link);
+            tr.insertText(' ');
+            setTextSelection(end + 1)(tr);
+            return tr;
+          },
+        ),
       );
     }
 
@@ -56,5 +58,5 @@ export function linkInputRules(autoLink: boolean, headingLink: boolean) {
 }
 
 export function linkPasteHandler(schema: Schema) {
-  return markPasteHandler(/[a-z]+:\/\/[^\s]+/g, schema.marks.link, url => ({ href: url }));
+  return markPasteHandler(/(?:<)?([a-z]+:\/\/[^\s>]+)(?:>)?/g, schema.marks.link, url => ({ href: url }));
 }

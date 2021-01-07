@@ -1,7 +1,7 @@
 /*
  * xref-completion.tsx
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -187,7 +187,7 @@ function xrefView(ui: EditorUI): React.FC<XRef> {
 }
 
 const kGenericType = {
-  image: (ui: EditorUI) => ui.images.omni_insert?.generic!
+  image: (ui: EditorUI) => ui.images.omni_insert?.generic!,
 };
 
 const kEqType = {
@@ -197,16 +197,20 @@ const kEqType = {
 
 const kXRefTypes: { [key: string]: { image: (ui: EditorUI) => string | undefined } } = {
   h1: {
-    image: (ui: EditorUI) => (ui.prefs.darkMode() ? ui.images.omni_insert?.heading1_dark : ui.images.omni_insert?.heading1),
+    image: (ui: EditorUI) =>
+      ui.prefs.darkMode() ? ui.images.omni_insert?.heading1_dark : ui.images.omni_insert?.heading1,
   },
   h2: {
-    image: (ui: EditorUI) => (ui.prefs.darkMode() ? ui.images.omni_insert?.heading2_dark : ui.images.omni_insert?.heading2),
+    image: (ui: EditorUI) =>
+      ui.prefs.darkMode() ? ui.images.omni_insert?.heading2_dark : ui.images.omni_insert?.heading2,
   },
   h3: {
-    image: (ui: EditorUI) => (ui.prefs.darkMode() ? ui.images.omni_insert?.heading3_dark : ui.images.omni_insert?.heading3),
+    image: (ui: EditorUI) =>
+      ui.prefs.darkMode() ? ui.images.omni_insert?.heading3_dark : ui.images.omni_insert?.heading3,
   },
   h4: {
-    image: (ui: EditorUI) => (ui.prefs.darkMode() ? ui.images.omni_insert?.heading4_dark : ui.images.omni_insert?.heading4),
+    image: (ui: EditorUI) =>
+      ui.prefs.darkMode() ? ui.images.omni_insert?.heading4_dark : ui.images.omni_insert?.heading4,
   },
   fig: {
     image: (ui: EditorUI) => (ui.prefs.darkMode() ? ui.images.omni_insert?.image_dark : ui.images.omni_insert?.image),
@@ -222,5 +226,5 @@ const kXRefTypes: { [key: string]: { image: (ui: EditorUI) => string | undefined
   cnj: kEqType,
   def: kEqType,
   exm: kGenericType,
-  exr: kGenericType
+  exr: kGenericType,
 };

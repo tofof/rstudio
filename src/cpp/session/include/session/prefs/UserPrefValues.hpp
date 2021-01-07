@@ -1,6 +1,6 @@
 /* UserPrefValues.hpp
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -90,6 +90,7 @@ namespace prefs {
 #define kShowInvisibles "show_invisibles"
 #define kShowIndentGuides "show_indent_guides"
 #define kContinueCommentsOnNewline "continue_comments_on_newline"
+#define kHighlightWebLink "highlight_web_link"
 #define kEditorKeybindings "editor_keybindings"
 #define kEditorKeybindingsDefault "default"
 #define kEditorKeybindingsVim "vim"
@@ -379,6 +380,8 @@ namespace prefs {
 #define kPythonVersion "python_version"
 #define kPythonPath "python_path"
 #define kSaveRetryTimeout "save_retry_timeout"
+#define kInsertNativePipeOperator "insert_native_pipe_operator"
+#define kCommandPaletteMru "command_palette_mru"
 
 class UserPrefValues: public Preferences
 {
@@ -563,6 +566,12 @@ public:
     */
    bool continueCommentsOnNewline();
    core::Error setContinueCommentsOnNewline(bool val);
+
+   /**
+    * Whether web links in comments are clickable.
+    */
+   bool highlightWebLink();
+   core::Error setHighlightWebLink(bool val);
 
    /**
     * The keybindings to use in the RStudio code editor.
@@ -1661,6 +1670,18 @@ public:
     */
    int saveRetryTimeout();
    core::Error setSaveRetryTimeout(int val);
+
+   /**
+    * Whether the Insert Pipe Operator command should insert the native R pipe operator, |>
+    */
+   bool insertNativePipeOperator();
+   core::Error setInsertNativePipeOperator(bool val);
+
+   /**
+    * Whether to keep track of recently used commands in the Command Palette
+    */
+   bool commandPaletteMru();
+   core::Error setCommandPaletteMru(bool val);
 
 };
 

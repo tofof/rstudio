@@ -1,4 +1,4 @@
-import { EmojiRaw } from "./emoji";
+import { EmojiRaw } from './emoji';
 
 const emjois: EmojiRaw[] = [
   {
@@ -3054,26 +3054,6 @@ const emjois: EmojiRaw[] = [
     "hasMarkdownRepresentation": true
   },
   {
-    "emojiRaw": "🤵‍♂️",
-    "description": "man in tuxedo",
-    "category": "People & Body",
-    "aliases": [
-      "man_in_tuxedo"
-    ],
-    "supportsSkinTone": false,
-    "hasMarkdownRepresentation": false
-  },
-  {
-    "emojiRaw": "🤵‍♀️",
-    "description": "woman in tuxedo",
-    "category": "People & Body",
-    "aliases": [
-      "woman_in_tuxedo"
-    ],
-    "supportsSkinTone": false,
-    "hasMarkdownRepresentation": false
-  },
-  {
     "emojiRaw": "👰",
     "description": "person with veil",
     "category": "People & Body",
@@ -3082,27 +3062,6 @@ const emjois: EmojiRaw[] = [
     ],
     "supportsSkinTone": true,
     "hasMarkdownRepresentation": true
-  },
-  {
-    "emojiRaw": "👰‍♂️",
-    "description": "man with veil",
-    "category": "People & Body",
-    "aliases": [
-      "man_with_veil"
-    ],
-    "supportsSkinTone": false,
-    "hasMarkdownRepresentation": false
-  },
-  {
-    "emojiRaw": "👰‍♀️",
-    "description": "woman with veil",
-    "category": "People & Body",
-    "aliases": [
-      "woman_with_veil",
-      "bride_with_veil"
-    ],
-    "supportsSkinTone": false,
-    "hasMarkdownRepresentation": false
   },
   {
     "emojiRaw": "🤰",
@@ -3123,36 +3082,6 @@ const emjois: EmojiRaw[] = [
     ],
     "supportsSkinTone": true,
     "hasMarkdownRepresentation": true
-  },
-  {
-    "emojiRaw": "👩‍🍼",
-    "description": "woman feeding baby",
-    "category": "People & Body",
-    "aliases": [
-      "woman_feeding_baby"
-    ],
-    "supportsSkinTone": false,
-    "hasMarkdownRepresentation": false
-  },
-  {
-    "emojiRaw": "👨‍🍼",
-    "description": "man feeding baby",
-    "category": "People & Body",
-    "aliases": [
-      "man_feeding_baby"
-    ],
-    "supportsSkinTone": false,
-    "hasMarkdownRepresentation": false
-  },
-  {
-    "emojiRaw": "🧑‍🍼",
-    "description": "person feeding baby",
-    "category": "People & Body",
-    "aliases": [
-      "person_feeding_baby"
-    ],
-    "supportsSkinTone": false,
-    "hasMarkdownRepresentation": false
   },
   {
     "emojiRaw": "👼",
@@ -4831,15 +4760,6 @@ const emjois: EmojiRaw[] = [
       "cat2"
     ],
     "hasMarkdownRepresentation": true
-  },
-  {
-    "emojiRaw": "🐈‍⬛",
-    "description": "black cat",
-    "category": "Animals & Nature",
-    "aliases": [
-      "black_cat"
-    ],
-    "hasMarkdownRepresentation": false
   },
   {
     "emojiRaw": "🦁",
@@ -9450,6 +9370,15 @@ const emjois: EmojiRaw[] = [
     "hasMarkdownRepresentation": true
   },
   {
+    "emojiRaw": "🪅",
+    "description": "piñata",
+    "category": "Activities",
+    "aliases": [
+      "pinata"
+    ],
+    "hasMarkdownRepresentation": false
+  },
+  {
     "emojiRaw": "♠️",
     "description": "spade suit",
     "category": "Activities",
@@ -10746,7 +10675,6 @@ const emjois: EmojiRaw[] = [
     "description": "envelope",
     "category": "Objects",
     "aliases": [
-      "email",
       "envelope"
     ],
     "hasMarkdownRepresentation": true
@@ -10756,6 +10684,7 @@ const emjois: EmojiRaw[] = [
     "description": "e-mail",
     "category": "Objects",
     "aliases": [
+      "email",
       "e-mail"
     ],
     "hasMarkdownRepresentation": true

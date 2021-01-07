@@ -1,7 +1,7 @@
 /*
  * TextEditingTargetPrefsHelper.java
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -170,11 +170,6 @@ public class TextEditingTargetPrefsHelper
             {
                docDisplay.forceImmediateRender();
             }));
-      releaseOnDismiss.add(prefs.foldStyle().bind(
-            (arg) ->
-            {
-               docDisplay.setFoldStyle(FoldStyle.fromPref(arg));
-            }));
       releaseOnDismiss.add(prefs.surroundSelection().bind(
             (arg) ->
             {
@@ -213,6 +208,11 @@ public class TextEditingTargetPrefsHelper
                (arg) ->
                {
                   docDisplay.setUseEmacsKeybindings(arg == UserPrefs.EDITOR_KEYBINDINGS_EMACS);
+               }));
+         releaseOnDismiss.add(prefs.foldStyle().bind(
+               (arg) ->
+               {
+                  docDisplay.setFoldStyle(FoldStyle.fromPref(arg));
                }));
       }
       

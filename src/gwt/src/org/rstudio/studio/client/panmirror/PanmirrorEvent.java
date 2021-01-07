@@ -1,7 +1,7 @@
 /*
  * PanmirrorEvent.java
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -23,6 +23,7 @@ public class PanmirrorEvent
    public static String Resize = "panmirrorResize";
    public static String Layout = "panmirrorLayout";
    public static String Scroll = "panmirrorScroll";
+   public static String Blur = "panmirrorBlur";
    public static String Focus = "panmirrorFocus";
    public static String Navigate = "panmirrorNavigate";
 }

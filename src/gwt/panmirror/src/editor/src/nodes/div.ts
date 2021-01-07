@@ -1,7 +1,7 @@
 /*
  * div.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -16,11 +16,12 @@
 import { Node as ProsemirrorNode, Schema, DOMOutputSpec, ResolvedPos } from 'prosemirror-model';
 import { EditorState, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
-import { findParentNodeOfType, ContentNodeWithPos } from 'prosemirror-utils';
-import { wrapIn, lift } from 'prosemirror-commands';
+import { findParentNodeOfType, ContentNodeWithPos, findParentNodeOfTypeClosestToPos } from 'prosemirror-utils';
+import { wrapIn } from 'prosemirror-commands';
 import { GapCursor } from 'prosemirror-gapcursor';
+import { liftTarget } from 'prosemirror-transform';
 
-import { ExtensionContext } from '../api/extension';
+import { ExtensionContext, Extension } from '../api/extension';
 import {
   pandocAttrSpec,
   pandocAttrToDomAttr,
@@ -43,7 +44,7 @@ import './div-styles.css';
 const DIV_ATTR = 0;
 const DIV_CHILDREN = 1;
 
-const extension = (context: ExtensionContext) => {
+const extension = (context: ExtensionContext) : Extension | null => {
   const { pandocExtensions, ui } = context;
 
   if (!pandocExtensions.fenced_divs && !pandocExtensions.native_divs) {
@@ -88,6 +89,10 @@ const extension = (context: ExtensionContext) => {
         attr_edit: () => ({
           type: (schema: Schema) => schema.nodes.div,
           editFn: () => divCommand(ui, true),
+          offset: {
+            top: 3,
+            right: 0
+          }
         }),
 
         pandoc: {
@@ -116,10 +121,7 @@ const extension = (context: ExtensionContext) => {
     baseKeys: () => {
       return [
         { key: BaseKey.Enter, command: divInputRuleEnter() },
-        { key: BaseKey.ArrowLeft, command: arrowHandler('left') },
-        { key: BaseKey.ArrowUp, command: arrowHandler('up') },
       ];
-
     },
 
     commands: () => {
@@ -140,30 +142,6 @@ const extension = (context: ExtensionContext) => {
   };
 };
 
-function arrowHandler(_dir: 'up' | 'left') {
-  return (state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView) => {
-
-    // only applies within divs
-    const div = findParentNodeOfType(state.schema.nodes.div)(state.selection);
-    if (!div) {
-      return false;
-    }
-
-    // if we are at the top of the document then create a gap cursor
-    const $pos = state.doc.resolve(div.pos);
-    if (!$pos.nodeBefore && $pos.depth === 1) {
-      if (dispatch) {
-        const gapCursor = new GapCursor($pos, $pos);
-        const tr = state.tr;
-        tr.setSelection(gapCursor);
-        dispatch(tr);
-      }
-      return true;
-    }
-
-    return false;
-  };
-}
 
 function divCommand(ui: EditorUI, allowEdit: boolean) {
   return (state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView) => {
@@ -212,7 +190,16 @@ async function editDiv(ui: EditorUI, state: EditorState, dispatch: (tr: Transact
       tr.setNodeMarkup(div.pos, div.node.type, result.attr);
       dispatch(tr);
     } else if (result.action === 'remove') {
-      lift(state, dispatch);
+      const fromPos = tr.doc.resolve(div.pos + 1);
+      const toPos = tr.doc.resolve(div.pos + div.node.nodeSize - 1);
+      const nodeRange = fromPos.blockRange(toPos);
+      if (nodeRange) {
+        const targetLiftDepth = liftTarget(nodeRange);
+        if (targetLiftDepth || targetLiftDepth === 0) {
+          tr.lift(nodeRange, targetLiftDepth);
+        }
+      }
+      dispatch(tr);
     }
   }
 }
@@ -239,7 +226,6 @@ function divInputRuleEnter() {
     // see if the parent consist of a pending code block input rule
     const schema = state.schema;
 
-
     // selection must be empty
     if (!state.selection.empty) {
       return false;
@@ -264,7 +250,6 @@ function divInputRuleEnter() {
 
     // execute
     if (dispatch) {
-
       // if it's just followed by whitespace then don't do it
       if (match[1] && match[1].trim().length === 0) {
         return false;
@@ -297,7 +282,6 @@ function divInputRuleEnter() {
         tr.deleteRange(start, end);
         dispatch(tr);
       });
-
     }
 
     return true;
@@ -313,6 +297,5 @@ function canApplyDivInputRule(state: EditorState) {
   const { $head } = state.selection;
   return canReplaceNodeWithDiv(schema, $head);
 }
-
 
 export default extension;

@@ -1,7 +1,7 @@
 /*
  * r_code_model.js
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -35,6 +35,15 @@ function isOneOf(object, array)
       if (object === array[i])
          return true;
    return false;
+}
+
+function isControlFlowFunctionKeyword(value)
+{
+   return value === "if" ||
+          value === "for" ||
+          value === "while" ||
+          value === "repeat" ||
+          value === "function";
 }
 
 var ScopeManager = require("mode/r_scope_tree").ScopeManager;
@@ -887,7 +896,7 @@ var RCodeModel = function(session, tokenizer,
             var reBraces = /{.*}\s*$/;
             label = label.replace(reBraces, "");
 
-            this.$scopes.onMarkdownHead(label, labelStartPos, labelEndPos, depth);
+            this.$scopes.onMarkdownHead(label, labelStartPos, labelEndPos, depth, true);
          }
 
          // Add R-comment sections; e.g.
@@ -915,7 +924,34 @@ var RCodeModel = function(session, tokenizer,
                label = label.replace(/\s*[#=-]+\s*$/, "");
             }
 
-            this.$scopes.onSectionStart(label, position);
+            // Detect Markdown-style headers, of the form
+            // 
+            //   ## Header 2 ----
+            //
+            // When we have such a header, we can provide a depth.
+            var match = /^\s*([#]+)\s*\w/.exec(value);
+            if (match != null)
+            {
+               // compute depth -- if the depth seems unlikely / large,
+               // then treat it as just a plain section (similar to how
+               // HTML only provides <h1> through <h6>)
+               var depth = match[1].length;
+               if (depth > 6)
+               {
+                  this.$scopes.onSectionStart(label, position);
+               }
+               else
+               {
+                  var labelStartPos = {row: position.row, column: 0};
+                  var labelEndPos = {row: position.row, column: Infinity};
+                  this.$scopes.onMarkdownHead(label, labelStartPos, labelEndPos, depth, false);
+               }
+            }
+            else
+            {
+               this.$scopes.onSectionStart(label, position);
+            }
+
          }
 
          // Sweave
@@ -956,7 +992,7 @@ var RCodeModel = function(session, tokenizer,
             var labelStartPos = {row: position.row, column: 0};
             var labelEndPos = {row: position.row, column: Infinity};
 
-            this.$scopes.onMarkdownHead(label, labelStartPos, labelEndPos, depth);
+            this.$scopes.onMarkdownHead(label, labelStartPos, labelEndPos, depth, true);
          }
 
          // Check specifically for YAML header boundaries ('---')
@@ -1756,15 +1792,31 @@ var RCodeModel = function(session, tokenizer,
                          clone.bwdToMatchingToken() &&
                          clone.moveToPreviousToken())
                      {
-                        var currentValue = clone.currentValue();
-                        if (contains(
-                           ["if", "for", "while", "repeat", "else"],
-                           currentValue
-                        ))
+                        if (isControlFlowFunctionKeyword(clone.currentValue()))
                         {
-                           return this.$getIndent(
-                              this.$doc.getLine(clone.$row)
-                           ) + continuationIndent + continuationIndent;
+                           var line = this.$doc.getLine(clone.$row);
+
+                           // Look beyond nested control flow statements,
+                           // to handle cases like:
+                           //
+                           //    if (foo)
+                           //      if (bar)
+                           //        x <- 1
+                           //    |
+                           //
+                           if (!startedOnOperator)
+                           {
+                              while (clone.moveToPreviousToken() &&
+                                     clone.currentValue() === ")" &&
+                                     clone.bwdToMatchingToken() &&
+                                     clone.moveToPreviousToken() &&
+                                     isControlFlowFunctionKeyword(clone.currentValue()))
+                              {
+                                 line = this.$doc.getLine(clone.$row);
+                              }
+                           }
+
+                           return this.$getIndent(line) + continuationIndent + continuationIndent;
                         }
                      }
                   }

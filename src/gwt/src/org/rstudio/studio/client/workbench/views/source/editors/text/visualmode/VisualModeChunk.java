@@ -1,7 +1,7 @@
 /*
  * VisualModeChunk.java
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -19,20 +19,27 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.rstudio.core.client.CommandWithArg;
 import org.rstudio.core.client.Debug;
 import org.rstudio.core.client.files.FileSystemItem;
+import org.rstudio.core.client.regex.Pattern;
 import org.rstudio.studio.client.RStudioGinjector;
 import org.rstudio.studio.client.common.filetypes.FileTypeRegistry;
+import org.rstudio.studio.client.common.rnw.RnwWeave;
 import org.rstudio.studio.client.panmirror.ui.PanmirrorUIChunkCallbacks;
 import org.rstudio.studio.client.panmirror.ui.PanmirrorUIChunkEditor;
+import org.rstudio.studio.client.server.ServerRequestCallback;
 import org.rstudio.studio.client.workbench.views.source.editors.EditingTargetCodeExecution;
 import org.rstudio.studio.client.workbench.views.source.editors.text.AceEditor;
 import org.rstudio.studio.client.workbench.views.source.editors.text.ChunkOutputWidget;
 import org.rstudio.studio.client.workbench.views.source.editors.text.ChunkRowExecState;
 import org.rstudio.studio.client.workbench.views.source.editors.text.DocDisplay;
+import org.rstudio.studio.client.workbench.views.source.editors.text.FoldStyle;
 import org.rstudio.studio.client.workbench.views.source.editors.text.Scope;
 import org.rstudio.studio.client.workbench.views.source.editors.text.TextEditingTarget;
+import org.rstudio.studio.client.workbench.views.source.editors.text.TextEditingTargetCompilePdfHelper;
 import org.rstudio.studio.client.workbench.views.source.editors.text.TextEditingTargetPrefsHelper;
+import org.rstudio.studio.client.workbench.views.source.editors.text.AceEditor.EditorBehavior;
 import org.rstudio.studio.client.workbench.views.source.editors.text.ace.AceEditorNative;
 import org.rstudio.studio.client.workbench.views.source.editors.text.ace.Position;
 import org.rstudio.studio.client.workbench.views.source.editors.text.ace.Range;
@@ -41,6 +48,8 @@ import org.rstudio.studio.client.workbench.views.source.editors.text.rmd.ChunkDe
 import org.rstudio.studio.client.workbench.views.source.editors.text.rmd.ChunkOutputUi;
 import org.rstudio.studio.client.workbench.views.source.editors.text.visualmode.VisualMode.SyncType;
 import org.rstudio.studio.client.workbench.views.source.model.DocUpdateSentinel;
+import org.rstudio.studio.client.workbench.views.source.model.RnwChunkOptions;
+import org.rstudio.studio.client.workbench.views.source.model.RnwCompletionContext;
 
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.DivElement;
@@ -100,28 +109,46 @@ public class VisualModeChunk
       // Create a new AceEditor instance and allow access to the underlying
       // native JavaScript object it represents (AceEditorNative)
       editor_ = new AceEditor();
+      editor_.setEditorBehavior(EditorBehavior.AceBehaviorEmbedded);
       final AceEditorNative chunkEditor = editor_.getWidget().getEditor();
       chunk.editor = Js.uncheckedCast(chunkEditor);
 
-      // Forward the R completion context from the parent editing session
+      // Forward the R and C++ completion contexts from the parent editing session
       editor_.setRCompletionContext(target_.getRCompletionContext());
+      editor_.setCppCompletionContext(target_.getCppCompletionContext());
+      
+      // Forward the Rnw completion context with a wrapper to adjust for the
+      // position in our display; this is what allows the completion engine to
+      // work on R Markdown chunk options
+      editor_.setRnwCompletionContext(wrapRnwCompletionContext(
+            target_.getRnwCompletionContext()));
       
       // Ensure word wrap mode is on (avoid horizontal scrollbars in embedded
       // editors)
       editor_.setUseWrapMode(true);
       
       // Track activation state and notify visual mode
-      editor_.addFocusHandler((evt) -> 
+      releaseOnDismiss_.add(editor_.addFocusHandler((evt) ->
       { 
          active_ = true; 
          target_.getVisualMode().setActiveEditor(editor_);
-      });
-      editor_.addBlurHandler((evt) ->
+      }));
+      releaseOnDismiss_.add(editor_.addBlurHandler((evt) ->
       {
          active_ = false;
          target_.getVisualMode().setActiveEditor(null);
-      });
-       
+      }));
+
+      // Track UI pref for tab behavior. Note that this can't be a lambda because Ace has trouble with lambda bindings.
+      releaseOnDismiss_.add(RStudioGinjector.INSTANCE.getUserPrefs().tabKeyMoveFocus().bind(
+         new CommandWithArg<Boolean>()
+         {
+            @Override
+            public void execute(Boolean movesFocus)
+            {
+               chunkEditor.setTabMovesFocus(movesFocus);
+            }
+         }));
 
       // Provide the editor's container element
       host_ = Document.get().createDivElement();
@@ -158,6 +185,11 @@ public class VisualModeChunk
       chunk.setMode = (String mode) ->
       {
          setMode(editor_, mode);
+
+         // Disable code folding, since we don't have a gutter (must be done
+         // after setting the mode)
+         editor_.setFoldStyle(FoldStyle.FOLD_MARK_MANUAL);
+      
       };
       
       // Provide a callback to have the code at the cursor executed
@@ -210,6 +242,9 @@ public class VisualModeChunk
       
       // Prevent tab from advancing into editor
       chunkEditor.getTextInputElement().setTabIndex(-1);
+
+      // Force the use of browser APIs to set focus to the input element
+      chunkEditor.useBrowserInputFocus();
 
       // Allow the editor's size to be determined by its content (these
       // settings trigger an auto-growing behavior), up to a max of 1000
@@ -527,7 +562,7 @@ public class VisualModeChunk
     */
    public void executeSelection()
    {
-      performWithSelection(() ->
+      performWithSelection((pos) ->
       {
          codeExecution_.executeSelection(false);
       });
@@ -537,9 +572,10 @@ public class VisualModeChunk
     * Performs an arbitrary command after synchronizing the selection state of
     * the child editor to the parent.
     * 
-    * @param command The command to perform.
+    * @param command The command to perform. The new position of the cursor in
+    *    source mode is passed as an argument.
     */
-   public void performWithSelection(Command command)
+   public void performWithSelection(CommandWithArg<Position> command)
    {
       sync_.syncToEditor(SyncType.SyncTypeExecution, () ->
       {
@@ -547,7 +583,7 @@ public class VisualModeChunk
       });
    }
    
-   private void performWithSyncedSelection(Command command)
+   private void performWithSyncedSelection(CommandWithArg<Position> command)
    {
       // Ensure we have a scope. This should always exist since we sync the
       // scope outline prior to executing code.
@@ -576,7 +612,7 @@ public class VisualModeChunk
       // Execute selection in the parent
       parent_.setSelectionRange(selectionRange);
 
-      command.execute();
+      command.execute(selectionRange.getStart());
       
       // After the event loop, forward the parent selection back to the child if
       // it's changed (this allows us to advance the cursor after running a line)
@@ -603,6 +639,46 @@ public class VisualModeChunk
       toolbar_ = new ChunkContextPanmirrorUi(target_, 
             scope_, editor_, false, sync_);
       host_.appendChild(toolbar_.getToolbar().getElement());
+   }
+   
+   /**
+    * Creates a wrapped version of the given completion context which adjusts
+    * chunk options completion for the embedded editor.
+    * 
+    * @param inner The completion context to wrap
+    * @return The wrapped completion context
+    */
+   private RnwCompletionContext wrapRnwCompletionContext(RnwCompletionContext inner)
+   {
+      return new RnwCompletionContext()
+      {
+         @Override
+         public int getRnwOptionsStart(String line, int cursorPos)
+         {
+            // Only the first row can have chunk options in embedded editors
+            int row = editor_.getSelectionStart().getRow();
+            if (row > 1)
+            {
+               return -1;
+            }
+            
+            return TextEditingTargetCompilePdfHelper.getRnwOptionsStart(
+                  line, cursorPos, 
+                  Pattern.create("^\\s*\\{r"), null);
+         }
+         
+         @Override
+         public void getChunkOptions(ServerRequestCallback<RnwChunkOptions> requestCallback)
+         {
+            inner.getChunkOptions(requestCallback);
+         }
+         
+         @Override
+         public RnwWeave getActiveRnwWeave()
+         {
+            return inner.getActiveRnwWeave();
+         }
+      };
    }
    
    private ChunkDefinition def_;

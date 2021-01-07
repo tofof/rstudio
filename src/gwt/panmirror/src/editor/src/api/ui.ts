@@ -1,7 +1,7 @@
 /*
  * ui.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -54,7 +54,6 @@ export interface ChunkEditor {
   destroy(): void;
 }
 
-
 export interface EditorUIContext {
   // check if we are the active tab
   isActiveTab: () => boolean;
@@ -63,7 +62,7 @@ export interface EditorUIContext {
   getDocumentPath: () => string | null;
 
   // ensure the edited document is saved on the server before proceeding
-  // (note this just means that the server has a copy of it for e.g. 
+  // (note this just means that the server has a copy of it for e.g.
   // indexing xrefs, from the user's standpoint the doc is still dirty)
   withSavedDocument: () => Promise<boolean>;
 
@@ -132,5 +131,6 @@ export interface EditorUIPrefs {
   zoteroUseBetterBibtex: () => boolean;
   setBibliographyDefaultType: (type: string) => void;
   bibliographyDefaultType: () => string;
+  citationDefaultInText: () => boolean;
+  setCitationDefaultInText: (value: boolean) => void;
 }
-

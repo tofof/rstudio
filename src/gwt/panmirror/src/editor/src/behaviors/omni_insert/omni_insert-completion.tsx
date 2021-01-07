@@ -1,7 +1,7 @@
 /*
  * omni_insert.tsx
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -121,8 +121,8 @@ function omniInsertCompletions(omniInserters: OmniInserter[], ui: EditorUI) {
       const decorations =
         query.length === 0
           ? DecorationSet.create(context.doc, [
-            placeholderDecoration(context.selection.head, ui.context.translateText(' type to search...')),
-          ])
+              placeholderDecoration(context.selection.head, ui.context.translateText(' type to search...')),
+            ])
           : undefined;
 
       // return the completion result

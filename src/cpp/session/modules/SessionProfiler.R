@@ -1,7 +1,7 @@
 #
 # SessionProfiler.R
 #
-# Copyright (C) 2020 by RStudio, PBC
+# Copyright (C) 2021 by RStudio, PBC
 #
 # Unless you have received this program directly from RStudio pursuant
 # to the terms of a commercial license agreement with RStudio, then
@@ -31,9 +31,16 @@
       "profvis.prof_output",
       default = .rs.profilesPath()
    )
-   
-   if (!.rs.dirExists(tempPath))
-      dir.create(tempPath, recursive = TRUE)
+
+   # NOTE: this code runs on IDE startup, and so errors can cause
+   # session initialization to fail. for that reason, we catch and
+   # log errors as warnings just so we avoid taking down the session
+   #
+   # https://github.com/rstudio/rstudio/issues/8256
+   tryCatch(
+      dir.create(tempPath, recursive = TRUE, showWarnings = FALSE),
+      error = warning
+   )
 
    list(tempPath = tempPath)
 })
@@ -78,16 +85,20 @@
       resources <- .rs.profileResources()
       htmlFile <- normalizePath(tempfile(fileext = ".html", tmpdir = resources$tempPath), winslash = "/", mustWork = FALSE)
 
-      if (identical(profilerOptions$profvis, NULL)) {
-         if (identical(tools::file_ext(profilerOptions$fileName), "Rprof")) {
+      if (identical(profilerOptions$profvis, NULL))
+      {
+         if (identical(tools::file_ext(profilerOptions$fileName), "Rprof"))
+         {
             profvis <- profvis::profvis(prof_input = profilerOptions$fileName, split = "h")
             htmlwidgets::saveWidget(profvis, htmlFile, selfcontained = TRUE)
          }
-         else {
+         else
+         {
             .rs.rpc.copy_profile(profilerOptions$fileName, htmlFile)
          }
       }
-      else {
+      else
+      {
          profvis <- profilerOptions$profvis
          htmlwidgets::saveWidget(profvis, htmlFile, selfcontained = TRUE)
       }

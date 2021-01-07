@@ -1,7 +1,7 @@
 /*
  * link-command.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -100,7 +100,9 @@ export function linkCommand(markType: MarkType, onEditLink: LinkEditorFn, capabi
             if (result.link.type === LinkType.Heading) {
               const heading = findChildren(
                 tr.doc,
-                node => node.type === state.schema.nodes.heading && equalsIgnoreCase(node.textContent, result.link.heading || ''),
+                node =>
+                  node.type === state.schema.nodes.heading &&
+                  equalsIgnoreCase(node.textContent, result.link.heading || ''),
               );
               if (heading.length > 0) {
                 tr.setNodeMarkup(heading[0].pos, state.schema.nodes.heading, {

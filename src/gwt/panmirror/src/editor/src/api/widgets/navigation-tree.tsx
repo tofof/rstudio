@@ -1,7 +1,7 @@
 /*
  * navigation-tree.tsx
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -13,10 +13,10 @@
  *
  */
 
-import React, { CSSProperties } from "react";
+import React, { CSSProperties } from 'react';
 
-import { WidgetProps } from "./react";
-import { FixedSizeList, ListChildComponentProps } from "react-window";
+import { WidgetProps } from './react';
+import { FixedSizeList, ListChildComponentProps } from 'react-window';
 
 import './navigation-tree.css';
 
@@ -39,27 +39,25 @@ interface NavigationTreeProps extends WidgetProps {
 
 interface NavigationTreeItemProps extends ListChildComponentProps {
   data: {
-    nodes: NavigationTreeNode[],
-    selectedNode: NavigationTreeNode,
-    onSelectedNodeChanged: (node: NavigationTreeNode) => void,
-    showSelection: boolean,
-    preventFocus: boolean,
+    nodes: NavigationTreeNode[];
+    selectedNode: NavigationTreeNode;
+    onSelectedNodeChanged: (node: NavigationTreeNode) => void;
+    showSelection: boolean;
+    preventFocus: boolean;
   };
 }
 
 // Indent level for each level
 const kNavigationTreeIndent = 8;
 
-// Select Tree is a single selection tree that is useful in 
+// Select Tree is a single selection tree that is useful in
 // hierarchical navigation type contexts. It does not support
 // multiple selection and is generally not a well behaved tree
 // like you would use to navigate a hierarchical file system.
 export const NavigationTree: React.FC<NavigationTreeProps> = props => {
-
   const style: CSSProperties = {
-    overflowY: 'scroll',
     height: props.height + 'px',
-    ...props.style
+    ...props.style,
   };
 
   // The currently selected node should always be expanded
@@ -68,13 +66,12 @@ export const NavigationTree: React.FC<NavigationTreeProps> = props => {
   // Ensure that all the parents of the selected node are expanded
   const nodes = props.nodes;
   const currentNodePath = pathToNode(selectedNode, nodes);
-  currentNodePath.forEach(node => node.expanded = true);
+  currentNodePath.forEach(node => (node.expanded = true));
   const selNode = nodes.find(n => n.key === selectedNode.key);
   if (selNode) {
     selNode.expanded = true;
   }
   const vizNodes = visibleNodes(props.nodes, props.selectedNode);
-
 
   // Ensure the item is scrolled into view
   const fixedList = React.useRef<FixedSizeList>(null);
@@ -124,11 +121,11 @@ export const NavigationTree: React.FC<NavigationTreeProps> = props => {
   };
 
   return (
-    <div style={style} tabIndex={0} onKeyDown={processKey} >
+    <div style={style} tabIndex={0} onKeyDown={processKey}>
       <FixedSizeList
-        className='pm-navigation-tree'
+        className="pm-navigation-tree"
         height={props.height}
-        width='100%'
+        width="100%"
         itemCount={vizNodes.length}
         itemSize={28}
         itemData={{
@@ -136,7 +133,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = props => {
           selectedNode: props.selectedNode,
           onSelectedNodeChanged: props.onSelectedNodeChanged,
           showSelection: true,
-          preventFocus: true
+          preventFocus: true,
         }}
         ref={fixedList}
       >
@@ -148,7 +145,6 @@ export const NavigationTree: React.FC<NavigationTreeProps> = props => {
 
 // Renders each item
 const NavigationTreeItem = (props: NavigationTreeItemProps) => {
-
   const data = props.data;
   const node: NavigationTreeNode = props.data.nodes[props.index];
   const path = pathToNode(node, data.nodes);
@@ -166,17 +162,23 @@ const NavigationTreeItem = (props: NavigationTreeItemProps) => {
 
   const indentLevel = depth;
   const indentStyle = {
-    paddingLeft: indentLevel * kNavigationTreeIndent + 'px'
+    paddingLeft: indentLevel * kNavigationTreeIndent + 'px',
   };
 
-  const selectedClassName = `${selected ? 'pm-selected-navigation-tree-item' : 'pm-navigation-tree-item'} pm-navigation-tree-node`;
+  const selectedClassName = `${
+    selected ? 'pm-selected-navigation-tree-item' : 'pm-navigation-tree-item'
+  } pm-navigation-tree-node`;
   return (
     <div key={node.key} onClick={onClick} style={props.style}>
       <div className={selectedClassName} style={indentLevel > 0 ? indentStyle : undefined}>
-        {node.image ? <div className='pm-navigation-tree-node-image-div'><img src={node.image} alt={node.name} className='pm-navigation-tree-node-image' /></div> : null}
-        <div className='pm-navigation-tree-node-label-div pm-text-color'>{node.name}</div>
+        {node.image ? (
+          <div className="pm-navigation-tree-node-image-div">
+            <img src={node.image} alt={node.name} className="pm-navigation-tree-node-image" />
+          </div>
+        ) : null}
+        <div className="pm-navigation-tree-node-label-div pm-text-color">{node.name}</div>
       </div>
-    </div >
+    </div>
   );
 };
 

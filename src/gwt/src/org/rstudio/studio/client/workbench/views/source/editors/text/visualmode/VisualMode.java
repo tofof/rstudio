@@ -1,7 +1,7 @@
 /*
  * VisualMode.java
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -27,6 +27,7 @@ import org.rstudio.core.client.PreemptiveTaskQueue;
 import org.rstudio.core.client.Rendezvous;
 import org.rstudio.core.client.SerializedCommand;
 import org.rstudio.core.client.SerializedCommandQueue;
+import org.rstudio.core.client.StringUtil;
 import org.rstudio.core.client.command.AppCommand;
 import org.rstudio.core.client.dom.DomUtils;
 import org.rstudio.core.client.patch.TextChange;
@@ -37,6 +38,7 @@ import org.rstudio.core.client.widget.images.ProgressImages;
 import org.rstudio.studio.client.RStudioGinjector;
 import org.rstudio.studio.client.application.events.EventBus;
 import org.rstudio.studio.client.common.Value;
+import org.rstudio.studio.client.palette.model.CommandPaletteEntryProvider;
 import org.rstudio.studio.client.palette.model.CommandPaletteEntrySource;
 import org.rstudio.studio.client.palette.model.CommandPaletteItem;
 import org.rstudio.studio.client.panmirror.PanmirrorChanges;
@@ -47,12 +49,15 @@ import org.rstudio.studio.client.panmirror.PanmirrorOptions;
 import org.rstudio.studio.client.panmirror.PanmirrorSetMarkdownResult;
 import org.rstudio.studio.client.panmirror.PanmirrorWidget;
 import org.rstudio.studio.client.panmirror.command.PanmirrorCommands;
+import org.rstudio.studio.client.panmirror.events.PanmirrorBlurEvent;
 import org.rstudio.studio.client.panmirror.events.PanmirrorFocusEvent;
 import org.rstudio.studio.client.panmirror.events.PanmirrorNavigationEvent;
 import org.rstudio.studio.client.panmirror.events.PanmirrorStateChangeEvent;
 import org.rstudio.studio.client.panmirror.events.PanmirrorUpdatedEvent;
+import org.rstudio.studio.client.panmirror.location.PanmirrorEditingLocation;
 import org.rstudio.studio.client.panmirror.location.PanmirrorEditingOutlineLocation;
 import org.rstudio.studio.client.panmirror.location.PanmirrorEditingOutlineLocationItem;
+import org.rstudio.studio.client.panmirror.outline.PanmirrorOutlineItem;
 import org.rstudio.studio.client.panmirror.outline.PanmirrorOutlineItemType;
 import org.rstudio.studio.client.panmirror.pandoc.PanmirrorPandocFormat;
 import org.rstudio.studio.client.panmirror.ui.PanmirrorUIDisplay;
@@ -62,14 +67,19 @@ import org.rstudio.studio.client.server.VoidServerRequestCallback;
 import org.rstudio.studio.client.workbench.commands.Commands;
 import org.rstudio.studio.client.workbench.prefs.model.UserPrefs;
 import org.rstudio.studio.client.workbench.views.source.Source;
+import org.rstudio.studio.client.workbench.views.source.editors.text.AceEditor;
 import org.rstudio.studio.client.workbench.views.source.editors.text.DocDisplay;
 import org.rstudio.studio.client.workbench.views.source.editors.text.Scope;
 import org.rstudio.studio.client.workbench.views.source.editors.text.ScopeList;
 import org.rstudio.studio.client.workbench.views.source.editors.text.TextEditingTarget;
 import org.rstudio.studio.client.workbench.views.source.editors.text.TextEditingTargetRMarkdownHelper;
 import org.rstudio.studio.client.workbench.views.source.editors.text.TextEditorContainer;
+import org.rstudio.studio.client.workbench.views.source.editors.text.ace.Position;
 import org.rstudio.studio.client.workbench.views.source.editors.text.findreplace.FindReplaceBar;
 import org.rstudio.studio.client.workbench.views.source.editors.text.rmd.ChunkDefinition;
+import org.rstudio.studio.client.workbench.views.source.editors.text.status.StatusBar;
+import org.rstudio.studio.client.workbench.views.source.editors.text.status.StatusBarPopupMenu;
+import org.rstudio.studio.client.workbench.views.source.editors.text.status.StatusBarPopupRequest;
 import org.rstudio.studio.client.workbench.views.source.editors.text.visualmode.events.VisualModeSpellingAddToDictionaryEvent;
 import org.rstudio.studio.client.workbench.views.source.events.SourceDocAddedEvent;
 import org.rstudio.studio.client.workbench.views.source.model.DirtyState;
@@ -83,7 +93,9 @@ import com.google.gwt.core.client.Scheduler.ScheduledCommand;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.event.shared.HandlerRegistration;
+import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.gwt.user.client.Command;
+import com.google.gwt.user.client.ui.MenuItem;
 import com.google.inject.Inject;
 
 import elemental2.core.JsObject;
@@ -325,19 +337,14 @@ public class VisualMode implements VisualModeEditorSync,
                         // note that ready.execute() is never called in the error case
                         return;
                      }
-                     
+
                      // we are about to mutate the document, so create a single
                      // shot handler that will adjust the known position of
                      // items in the outline (we do this opportunistically
                      // unless executing code)
                      if (markdown.location != null && syncType != SyncType.SyncTypeExecution)
                      {
-                        final Value<HandlerRegistration> handler = new Value<HandlerRegistration>(null);
-                        handler.setValue(docDisplay_.addScopeTreeReadyHandler((evt) ->
-                        {
-                           alignScopeOutline(markdown.location);
-                           handler.getValue().removeHandler();
-                        }));
+                         alignScopeTreeAfterUpdate(markdown.location);
                      }
                      
                      // apply diffs unless the wrap column changed (too expensive)
@@ -514,6 +521,16 @@ public class VisualMode implements VisualModeEditorSync,
                         allDone.execute(false);
                         return;
                      }
+                     
+                     // if we failed to extract a source capsule then don't switch (as the user will have lost data)
+                     // (note that this constant is also defined in rmd_chunk-capsule.ts)
+                     final String kRmdBlockCapsuleType = "f3175f2a-e8a0-4436-be12-b33925b6d220".toLowerCase();
+                     if (result.canonical.contains(kRmdBlockCapsuleType))
+                     {
+                        view_.showWarningBar("Unable to activate visual mode (error parsing code chunks out of document)");
+                        allDone.execute(false);
+                        return;
+                     }
 
                      // clear progress (for possible dialog overlays created by confirmation)
                      progress_.endProgressOperation();
@@ -531,8 +548,10 @@ public class VisualMode implements VisualModeEditorSync,
                            // so that diffs are efficient)
                            if (result.canonical != editorCode)
                            {
-                              getSourceEditor().setCode(result.canonical);
-                              markDirty();
+                               // ensure we realign the scope tree after changing the code
+                               alignScopeTreeAfterUpdate(result.location);
+                               getSourceEditor().setCode(result.canonical);
+                               markDirty();
                            }
                            
                            // completed
@@ -544,11 +563,23 @@ public class VisualMode implements VisualModeEditorSync,
                               // case sync our editing location to what it is in source 
                               if (focus)
                               { 
-                                 panmirror_.focus();
-                                 panmirror_.setEditingLocation(
-                                       visualModeLocation_.getSourceOutlineLocation(), 
-                                       visualModeLocation_.savedEditingLocation()
-                                       ); 
+                                 // catch exceptions which occur here (can result from attempting to restore
+                                 // an invalid position). generally we'd like to diagnose and fix instances
+                                 // of this error in a more targeted fashion, however we are now at the point
+                                 // of v1.4 release and the error results in an inability to switch to visual
+                                 // mode, so we do more coarse grained error handling here
+                                 try
+                                 {
+                                    panmirror_.focus();
+                                    panmirror_.setEditingLocation(
+                                          visualModeLocation_.getSourceOutlineLocation(), 
+                                          visualModeLocation_.savedEditingLocation()
+                                          ); 
+                                 }
+                                 catch(Exception e)
+                                 {
+                                    Debug.logException(e);
+                                 }
                               }
                               
                               // show any warnings
@@ -650,10 +681,6 @@ public class VisualMode implements VisualModeEditorSync,
       
       // disable commands
       disableForVisualMode(
-        // Disabled since it just opens the scope tree widget (which doens't
-        // exist in visual mode)
-        commands_.jumpTo(),
-
         // Disabled since diagnostics aren't active in visual mode
         commands_.showDiagnosticsActiveDocument(),
 
@@ -674,13 +701,17 @@ public class VisualMode implements VisualModeEditorSync,
       
       // initially disable code commands (they will be re-enabled later when an
       // editor has focus)
-      setCodeCommandsEnabled(false);
+      if (isActivated())
+      {
+         setCodeCommandsEnabled(false);
+      }
    }
    
    
    public void unmanageCommands()
    {
       restoreDisabledForVisualMode();
+      setCodeCommandsEnabled(true);
    }
    
    public void insertChunk(String chunkPlaceholder, int rowOffset, int colOffset)
@@ -690,12 +721,13 @@ public class VisualMode implements VisualModeEditorSync,
 
    /**
     * Perform a command after synchronizing the selection state of the visual
-    * editor. Note that the command will not be performed unless focus is in a
-    * code editor (as otherwise we can't map selection 1-1).
-    * 
-    * @param command
+    * editor. Note that the command will be passed a null position if focus is
+    * not in a code editor (outside a code editor we can't map selection 1-1).
+    *
+    * @param command The command to perform; will be passed the exact cursor
+    *    position if available.
     */
-   public void performWithSelection(Command command)
+   public void performWithSelection(CommandWithArg<Position> command)
    {
       // Drive focus to the editing surface. This is necessary so we correctly
       // identify the active (focused) editor on which to perform the command.
@@ -704,6 +736,16 @@ public class VisualMode implements VisualModeEditorSync,
       // Perform the command in the active code editor, if any.
       visualModeChunks_.performWithSelection(command);
    }
+
+   /**
+    * Moves the cursor in source mode to the currently active outline item in visual mode.
+    */
+   public void syncSourceOutlineLocation()
+   {
+      visualModeLocation_.setSourceOutlineLocation(
+              panmirror_.getEditingOutlineLocation());
+   }
+
    
    public DocDisplay getActiveEditor()
    {
@@ -792,6 +834,7 @@ public class VisualMode implements VisualModeEditorSync,
             public boolean isFindReplaceShowing() { return false; }
             public void showFindReplace(boolean defaultForward) {}
             public void hideFindReplace() {}
+            public void findFromSelection(String text) {}
             public void findNext() {}
             public void findPrevious() {}
             public void replaceAndFind() {}
@@ -914,8 +957,12 @@ public class VisualMode implements VisualModeEditorSync,
    {
       if (syncOnIdle_ != null)
          syncOnIdle_.suspend();
+
       if (saveLocationOnIdle_ != null)
          saveLocationOnIdle_.suspend();
+
+      if (panmirror_ != null)
+         panmirror_.destroy();
    }
    
    public VisualModeChunk getChunkAtRow(int row)
@@ -936,10 +983,120 @@ public class VisualMode implements VisualModeEditorSync,
       return chunk.getDefinition();
    }
 
-   @Override
-   public List<CommandPaletteItem> getCommandPaletteItems()
+
+   /**
+    * Gets the Scope of the nearest visual mode chunk.
+    *
+    * @param dir The direction in which to look
+    *
+    * @return The scope of the nearest chunk, or null if no chunk was found.
+    */
+   public Scope getNearestChunkScope(int dir)
    {
-      return panmirror_.getCommandPaletteItems();
+      PanmirrorEditingLocation loc = panmirror_.getEditingLocation();
+      if (loc == null)
+      {
+         // No current location, so can't find nearest chunk
+         return null;
+      }
+      VisualModeChunk chunk = visualModeChunks_.getNearestChunk(loc.pos, dir);
+      if (chunk == null)
+      {
+         // No nearest chunk
+         return null;
+      }
+      return chunk.getScope();
+   }
+   
+   /**
+    * Gets the document outline for the status bar popup; displayed when
+    * clicking on the status bar or using the Jump To command.
+    * 
+    * @return Menu of items in the outline
+    */
+   public StatusBarPopupRequest getStatusBarPopup()
+   {
+      StatusBarPopupMenu menu = new StatusBarPopupMenu();
+
+      buildStatusBarMenu(panmirror_.getOutline(), menu);
+      
+      return new StatusBarPopupRequest(menu, null);
+   }
+   
+   /**
+    * Recursively builds a status bar popup menu out of editor outline items.
+    * 
+    * @param items An array of items to add to the menu 
+    * @param menu The menu to add to
+    */
+   private void buildStatusBarMenu(PanmirrorOutlineItem[] items, StatusBarPopupMenu menu)
+   {
+      for (PanmirrorOutlineItem item: items)
+      {
+         // Don't generate a menu entry for the YAML metadata
+         if (StringUtil.equals(item.type, PanmirrorOutlineItemType.YamlMetadata))
+         {
+            continue;
+         }
+
+         SafeHtmlBuilder label = new SafeHtmlBuilder();
+         
+         // Add non-breaking spaces to indent to the level of the item
+         label.appendHtmlConstant(
+               StringUtil.repeat("&nbsp;&nbsp;", item.level));
+         
+         // Make headings bold
+         if (StringUtil.equals(item.type, PanmirrorOutlineItemType.Heading))
+         {
+            label.appendHtmlConstant("<strong>");
+         }
+         
+         if (StringUtil.equals(item.type, PanmirrorOutlineItemType.RmdChunk))
+         {
+            label.appendEscaped("Chunk " + item.sequence);
+            if (!StringUtil.equals(item.title, PanmirrorOutlineItemType.RmdChunk))
+            {
+               label.appendEscaped(": " + item.title);
+            }
+         }
+         else
+         {
+            // For non-chunk outline items, use the title directly
+            label.appendEscaped(item.title);
+         }
+
+         if (StringUtil.equals(item.type, PanmirrorOutlineItemType.Heading))
+         {
+            label.appendHtmlConstant("</strong>");
+         }
+
+         // Create a menu item representing the item and add it to the menu
+         final MenuItem menuItem = new MenuItem(
+               label.toSafeHtml(),
+               () ->
+               {
+                  // Navigate to the given ID
+                  visualModeNavigation_.navigateToId(item.navigation_id, false);
+                  
+                  // Immediately update the status bar with the new location
+                  // (this is usually done on idle so can lag a bit otherwise)
+                  syncStatusBarLocation();
+               });
+         
+         menu.addItem(menuItem);
+         
+         // If this item has children, add them recursively
+         if (item.children != null)
+         {
+            buildStatusBarMenu(item.children, menu);
+         }
+      }
+   }
+
+   @Override
+   public CommandPaletteEntryProvider getPaletteEntryProvider()
+   {
+      return panmirror_.getPaletteEntryProvider();
    }
 
    public void focus(Command onComplete)
@@ -1035,9 +1192,19 @@ public class VisualMode implements VisualModeEditorSync,
                // activate widget
                editorContainer.activateWidget(panmirror_, focus);
                
-               // begin save-on-idle behavior
+               // begin idle behavior
                syncOnIdle_.resume();
                saveLocationOnIdle_.resume();
+               displayLocationOnIdle_.resume();
+               
+               // update status bar widget with current position
+               syncStatusBarLocation();
+
+               // hide cursor position widget (doesn't update in visual mode)
+               if (target_.getStatusBar() != null)
+               {
+                  target_.getStatusBar().setPositionVisible(false);
+               }
                
                // (re)inject notebook output from the editor
                target_.getNotebook().migrateCodeModeOutput();
@@ -1089,9 +1256,18 @@ public class VisualMode implements VisualModeEditorSync,
             if (saveLocationOnIdle_ != null)
                saveLocationOnIdle_.suspend();
             
+            if (displayLocationOnIdle_ != null)
+               displayLocationOnIdle_.suspend();
+            
             // move notebook outputs from visual mode
             target_.getNotebook().migrateVisualModeOutput();
-            
+
+            // bring the cursor position indicator back
+            if (target_.getStatusBar() != null)
+            {
+               target_.getStatusBar().setPositionVisible(true);
+            }
+
             // execute completed hook
             Scheduler.get().scheduleDeferred(completed);
          };
@@ -1157,6 +1333,84 @@ public class VisualMode implements VisualModeEditorSync,
          panmirror_.activateDevTools();
    }
    
+   /**
+    * Updates the status bar with the name of the current location.
+    */
+   private void syncStatusBarLocation()
+   {
+      // Get the current outline so we can look up details of the selection
+      PanmirrorOutlineItem[] items = panmirror_.getOutline();
+      String targetId = panmirror_.getSelection().navigation_id;
+      
+      // Find the selection and display it
+      PanmirrorOutlineItem item = findNavigationId(items, targetId);
+      if (item == null || StringUtil.equals(item.type, PanmirrorOutlineItemType.YamlMetadata))
+      {
+         // If we didn't find the selection in the outline, we're at the top
+         // level of the document.
+         //
+         // We also show this when beneath the top level YAML metadata region,
+         // if present.
+         target_.updateStatusBarLocation("(Top Level)", StatusBar.SCOPE_TOP_LEVEL);
+      }
+      else
+      {
+         // Convert the outline type into a status bar type
+         int type = StatusBar.SCOPE_ANON;
+         String title = item.title;
+         if (StringUtil.equals(item.type, PanmirrorOutlineItemType.Heading))
+         {
+            type = StatusBar.SCOPE_SECTION;
+         }
+         else if (StringUtil.equals(item.type, PanmirrorOutlineItemType.RmdChunk))
+         {
+            type = StatusBar.SCOPE_CHUNK;
+            title = "Chunk " + item.sequence;
+            if (!StringUtil.equals(item.title, PanmirrorOutlineItemType.RmdChunk))
+            {
+               title += ": " + item.title;
+            }
+         }
+         
+         // Update the status bar and mark that we found an item
+         target_.updateStatusBarLocation(title, type);
+      }
+   }
+   
+   /**
+    * Recursively finds the outline item associated with a given navigation ID.
+    * 
+    * @param items An array of outline items.
+    * @param targetId The navigation ID to find.
+    * @return The outline item with the given ID, or null if no item was found.
+    */
+   private PanmirrorOutlineItem findNavigationId(
+       PanmirrorOutlineItem[] items, String targetId)
+   {
+      for (PanmirrorOutlineItem item: items)
+      {
+         // Check whether this is the item being sought
+         if (item.navigation_id == targetId)
+         {
+            return item;
+         }
+         
+         // If this item has children, check them recursively
+         if (item.children != null)
+         {
+            PanmirrorOutlineItem childItem = findNavigationId(
+                  item.children, targetId);
+            if (childItem != null)
+            {
+               return childItem;
+            }
+         }
+      }
+
+      // Item not found in this level
+      return null;
+   }
+   
    
    private void withPanmirror(Command ready)
    {
@@ -1200,6 +1454,16 @@ public class VisualMode implements VisualModeEditorSync,
                }
             };
             
+            // periodically display the selection in the status bar
+            displayLocationOnIdle_ = new DebouncedCommand(500)
+            {
+               @Override
+               protected void execute()
+               {
+                  syncStatusBarLocation();
+               }
+            };
+
             // set dirty flag + nudge idle sync on change
             panmirror_.addPanmirrorUpdatedHandler(new PanmirrorUpdatedEvent.Handler()
             {
@@ -1223,6 +1487,7 @@ public class VisualMode implements VisualModeEditorSync,
                public void onPanmirrorStateChange(PanmirrorStateChangeEvent event)
                {
                   saveLocationOnIdle_.nudge();
+                  displayLocationOnIdle_.nudge();
                }
             });
             
@@ -1235,6 +1500,17 @@ public class VisualMode implements VisualModeEditorSync,
                   visualModeNavigation_.onNavigated(event.getNavigation());
                }
             });
+            
+            // propagate blur to text editing target
+            panmirror_.addPanmirrorBlurHandler(new PanmirrorBlurEvent.Handler()
+            {
+               @Override
+               public void onPanmirrorBlur(PanmirrorBlurEvent event)
+               {
+                  target_.onVisualEditorBlur();
+               }
+            });
+            
             
             // check for external edit on focus
             panmirror_.addPanmirrorFocusHandler(new PanmirrorFocusEvent.Handler()
@@ -1253,6 +1529,14 @@ public class VisualMode implements VisualModeEditorSync,
                   // exits a code chunk as well as when the entire widget loses
                   // focus.
                   setCodeCommandsEnabled(false);
+                  
+                  // Also clear the last focused Ace editor. This is normally
+                  // used by addins which need to target the 'active' editor,
+                  // with the 'active' state persisting after other UI elements
+                  // (e.g. the Addins toolbar) has been clicked. However, if
+                  // focus has been moved to a new editor context, then we instead
+                  // want to clear that state.
+                  AceEditor.clearLastFocusedEditor();
                }
             });
              
@@ -1470,7 +1754,7 @@ public class VisualMode implements VisualModeEditorSync,
             new ArrayList<PanmirrorEditingOutlineLocationItem>();
       for (int j = 0; j < location.items.length; j++)
       {
-         if (location.items[j].type == PanmirrorOutlineItemType.RmdChunk)
+         if (StringUtil.equals(location.items[j].type, PanmirrorOutlineItemType.RmdChunk))
          {
             chunkItems.add(location.items[j]);
          }
@@ -1501,7 +1785,26 @@ public class VisualMode implements VisualModeEditorSync,
          chunk.setScope(chunkScopes.get(k));
       }
    }
-   
+
+   /**
+    * Aligns the scope tree with chunks in visual mode; intended to be called when code
+    * has been mutated in the editor.
+    *
+    * @param location An outline of editing locations
+    */
+   private void alignScopeTreeAfterUpdate(PanmirrorEditingOutlineLocation location)
+   {
+      final Value<HandlerRegistration> handler = new Value<HandlerRegistration>(null);
+      handler.setValue(docDisplay_.addScopeTreeReadyHandler((evt) ->
+      {
+         if (location != null)
+         {
+            alignScopeOutline(location);
+         }
+         handler.getValue().removeHandler();
+      }));
+   }
+
    private Commands commands_;
    private UserPrefs prefs_;
    private SourceServerOperations source_;
@@ -1526,6 +1829,7 @@ public class VisualMode implements VisualModeEditorSync,
    
    private DebouncedCommand syncOnIdle_; 
    private DebouncedCommand saveLocationOnIdle_;
+   private DebouncedCommand displayLocationOnIdle_;
    
    private boolean isDirty_ = false;
    private boolean loadingFromSource_ = false;

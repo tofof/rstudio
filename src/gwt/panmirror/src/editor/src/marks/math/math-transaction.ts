@@ -1,7 +1,7 @@
 /*
  * math-transaction.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -42,12 +42,10 @@ export function mathAppendMarkTransaction(): AppendMarkTransactionHandler {
             const charAfter = tr.doc.textBetween(mathRange.to, mathRange.to + 1);
             const noDelims = !mathText.startsWith(mathDelim) || !mathText.endsWith(mathDelim);
             const selectionIsWithin = selectionIsWithinRange(tr.selection, mathRange);
-            const spaceAtLeft = !selectionIsWithin &&
-              mathAttr.type === MathType.Inline &&
-              mathText.startsWith(mathDelim + ' ');
-            const spaceAtRight = !selectionIsWithin &&
-              mathAttr.type === MathType.Inline &&
-              mathText.endsWith(' ' + mathDelim);
+            const spaceAtLeft =
+              !selectionIsWithin && mathAttr.type === MathType.Inline && mathText.startsWith(mathDelim + ' ');
+            const spaceAtRight =
+              !selectionIsWithin && mathAttr.type === MathType.Inline && mathText.endsWith(' ' + mathDelim);
             const numberAfter = mathAttr.type === MathType.Inline && /\d/.test(charAfter);
             if (noDelims || spaceAtLeft || spaceAtRight || numberAfter) {
               tr.removeMark(mathRange.from, mathRange.to, schema.marks.math);

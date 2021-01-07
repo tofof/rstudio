@@ -1,7 +1,7 @@
 /*
  * insert_citation-source-panel-pubmed.tsx
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -12,25 +12,33 @@
  * AGPL (http://www.gnu.org/licenses/agpl-3.0.txt) for more details.
  *
  */
-import React from "react";
+import React from 'react';
 
-import { BibliographyManager } from "../../../api/bibliography/bibliography";
-import { createUniqueCiteId } from "../../../api/cite";
-import { CSL } from "../../../api/csl";
-import { DOIServer } from "../../../api/doi";
-import { logException } from "../../../api/log";
-import { NavigationTreeNode } from "../../../api/widgets/navigation-tree";
-import { PubMedServer, PubMedDocument, suggestCiteId, imageForType } from "../../../api/pubmed";
-import { EditorUI } from "../../../api/ui";
+import { BibliographyManager } from '../../../api/bibliography/bibliography';
+import { createUniqueCiteId } from '../../../api/cite';
+import { CSL, sanitizeForCiteproc } from '../../../api/csl';
+import { DOIServer } from '../../../api/doi';
+import { logException } from '../../../api/log';
+import { NavigationTreeNode } from '../../../api/widgets/navigation-tree';
+import { PubMedServer, PubMedDocument, suggestCiteId, imageForType } from '../../../api/pubmed';
+import { EditorUI } from '../../../api/ui';
 
-import { CitationSourcePanelProps, CitationSourcePanelProvider, CitationListEntry, CitationSourceListStatus, errorForStatus } from "./insert_citation-source-panel";
-import { CitationSourceLatentSearchPanel } from "./insert_citation-source-panel-latent-search";
+import {
+  CitationSourcePanelProps,
+  CitationSourcePanelProvider,
+  CitationListEntry,
+  CitationSourceListStatus,
+  errorForStatus,
+  matchExistingSourceCitationListEntry,
+} from './insert_citation-source-panel';
+import { CitationSourceLatentSearchPanel } from './insert_citation-source-panel-latent-search';
 
-export function pubmedSourcePanel(ui: EditorUI,
-  bibliographyManager: BibliographyManager,
+export function pubmedSourcePanel(
+  ui: EditorUI,
   server: PubMedServer,
-  doiServer: DOIServer): CitationSourcePanelProvider {
-
+  doiServer: DOIServer,
+  bibliographyManager: BibliographyManager
+): CitationSourcePanelProvider {
   const kPubmedType = 'Pubmed';
   return {
     key: 'EF556233-05B0-4678-8216-38061908463F',
@@ -42,7 +50,7 @@ export function pubmedSourcePanel(ui: EditorUI,
         image: ui.images.citations?.pubmed,
         type: kPubmedType,
         children: [],
-        expanded: true
+        expanded: true,
       };
     },
     typeAheadSearch: (_searchTerm: string, _selectedNode: NavigationTreeNode, _existingCitationIds: string[]) => {
@@ -58,7 +66,6 @@ export function pubmedSourcePanel(ui: EditorUI,
         const pubMedResult = await server.search(searchTerm);
         switch (pubMedResult.status) {
           case 'ok':
-
             if (pubMedResult.message !== null) {
               // There is a message
               // PubMed Results and Existing Ids
@@ -67,8 +74,8 @@ export function pubmedSourcePanel(ui: EditorUI,
 
               // Create Citation List Entries for these PubMed docs
               const citationEntries = docs.map(doc => {
-                const citationEntry = toCitationListEntry(doc, dedupeCitationIds, ui, doiServer);
-                if (citationEntry) {
+                const citationEntry = matchExistingSourceCitationListEntry(doc.doi, dedupeCitationIds, ui, bibliographyManager) || toCitationListEntry(doc, dedupeCitationIds, ui, doiServer);
+                if (citationEntry && citationEntry.id) {
                   // Add this id to the list of existing Ids so future ids will de-duplicate against this one
                   dedupeCitationIds.push(citationEntry.id);
                 }
@@ -78,15 +85,16 @@ export function pubmedSourcePanel(ui: EditorUI,
               // Return the search result
               return Promise.resolve({
                 citations: citationEntries,
-                status: citationEntries.length > 0 ? CitationSourceListStatus.default : CitationSourceListStatus.noResults,
-                statusMessage: citationEntries.length > 0 ? '' : noResultsMessage
+                status:
+                  citationEntries.length > 0 ? CitationSourceListStatus.default : CitationSourceListStatus.noResults,
+                statusMessage: citationEntries.length > 0 ? '' : noResultsMessage,
               });
             } else {
               // No message, no results
               return Promise.resolve({
                 citations: [],
                 status: CitationSourceListStatus.noResults,
-                statusMessage: noResultsMessage
+                statusMessage: noResultsMessage,
               });
             }
 
@@ -95,49 +103,54 @@ export function pubmedSourcePanel(ui: EditorUI,
             return Promise.resolve({
               citations: [],
               status: CitationSourceListStatus.error,
-              statusMessage: ui.context.translateText(errorForStatus(ui, pubMedResult.status, 'PubMed'))
+              statusMessage: ui.context.translateText(errorForStatus(ui, pubMedResult.status, 'PubMed')),
             });
         }
-
       } catch (e) {
         logException(e);
         return Promise.resolve({
           citations: [],
           status: CitationSourceListStatus.error,
-          statusMessage: ui.context.translateText('An unknown error occurred. Please try again.')
+          statusMessage: ui.context.translateText('An unknown error occurred. Please try again.'),
         });
       }
-    }
+    },
   };
 }
 
-export const PubmedSourcePanel = React.forwardRef<HTMLDivElement, CitationSourcePanelProps>((props: CitationSourcePanelProps, ref) => {
-  return (
-    <CitationSourceLatentSearchPanel
-      height={props.height}
-      citations={props.citations}
-      citationsToAdd={props.citationsToAdd}
-      searchTerm={props.searchTerm}
-      onSearchTermChanged={props.onSearchTermChanged}
-      executeSearch={props.onExecuteSearch}
-      onAddCitation={props.onAddCitation}
-      onRemoveCitation={props.onRemoveCitation}
-      selectedIndex={props.selectedIndex}
-      onSelectedIndexChanged={props.onSelectedIndexChanged}
-      onConfirm={props.onConfirm}
-      searchPlaceholderText={props.ui.context.translateText('Search PubMed for Citations')}
-      status={props.status}
-      statusMessage={props.statusMessage}
-      ui={props.ui}
-      ref={ref}
-    />
-  );
-});
+export const PubmedSourcePanel = React.forwardRef<HTMLDivElement, CitationSourcePanelProps>(
+  (props: CitationSourcePanelProps, ref) => {
+    return (
+      <CitationSourceLatentSearchPanel
+        height={props.height}
+        citations={props.citations}
+        citationsToAdd={props.citationsToAdd}
+        searchTerm={props.searchTerm}
+        onSearchTermChanged={props.onSearchTermChanged}
+        executeSearch={props.onExecuteSearch}
+        onAddCitation={props.onAddCitation}
+        onRemoveCitation={props.onRemoveCitation}
+        selectedIndex={props.selectedIndex}
+        onSelectedIndexChanged={props.onSelectedIndexChanged}
+        onConfirm={props.onConfirm}
+        searchPlaceholderText={props.ui.context.translateText('Search PubMed for Citations')}
+        status={props.status}
+        statusMessage={props.statusMessage}
+        ui={props.ui}
+        ref={ref}
+      />
+    );
+  },
+);
 
-function toCitationListEntry(doc: PubMedDocument, existingIds: string[], ui: EditorUI, doiServer: DOIServer): CitationListEntry {
-
+function toCitationListEntry(
+  doc: PubMedDocument,
+  existingIds: string[],
+  ui: EditorUI,
+  doiServer: DOIServer,
+): CitationListEntry {
   const id = createUniqueCiteId(existingIds, suggestCiteId(doc));
-  const providerKey = 'crossref';
+  const providerKey = 'pubmed';
   return {
     id,
     isIdEditable: true,
@@ -154,13 +167,13 @@ function toCitationListEntry(doc: PubMedDocument, existingIds: string[], ui: Edi
       // Generate CSL using the DOI
       const doiResult = await doiServer.fetchCSL(doc.doi, -1);
       const csl = doiResult.message as CSL;
-      return { ...csl, id: finalId, providerKey };
+      const sanitizedCSL = sanitizeForCiteproc(csl);
+      return { ...sanitizedCSL, id: finalId, providerKey };
     },
-    isSlowGeneratingBibliographySource: true
+    isSlowGeneratingBibliographySource: true,
   };
 }
 
 function formatAuthors(authors: string[], length: number) {
   return authors.join(',');
 }
-

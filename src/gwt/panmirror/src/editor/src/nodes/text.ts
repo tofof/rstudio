@@ -1,7 +1,7 @@
 /*
  * text.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -20,9 +20,7 @@ import { ExtensionContext } from '../api/extension';
 import { kQuoteType, QuoteType, kQuoteChildren, fancyQuotesToSimple } from '../api/quote';
 
 const extension = (context: ExtensionContext) => {
-
   const readText = (text: string) => {
-
     // we explicitly don't want fancy quotes in the editor
     text = fancyQuotesToSimple(text);
 
@@ -55,13 +53,9 @@ const extension = (context: ExtensionContext) => {
               token: PandocTokenType.Quoted,
               handler: () => (writer: ProsemirrorWriter, tok: PandocToken) => {
                 const type = tok.c[kQuoteType].t;
-                const quote = type === QuoteType.SingleQuote ? '\'' : '"';
-                writer.writeTokens([
-                  { t: 'Str', c: quote },
-                  ...tok.c[kQuoteChildren],
-                  { t: 'Str', c: quote },
-                ]);
-              }
+                const quote = type === QuoteType.SingleQuote ? "'" : '"';
+                writer.writeTokens([{ t: 'Str', c: quote }, ...tok.c[kQuoteChildren], { t: 'Str', c: quote }]);
+              },
             },
           ],
           writer: (output: PandocOutput, node: ProsemirrorNode) => {

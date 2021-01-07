@@ -1,7 +1,7 @@
 /*
  * xref.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -13,13 +13,13 @@
  *
  */
 
-
-import { Node as ProsemirrorNode } from 'prosemirror-model';
+import { Node as ProsemirrorNode, MarkType } from 'prosemirror-model';
 
 import { findChildrenByMark } from 'prosemirror-utils';
 
 import { pandocAutoIdentifier } from './pandoc_id';
 import { rmdChunkEngineAndLabel } from './rmd';
+import { kTexFormat } from './raw';
 
 export interface XRefServer {
   indexForFile: (file: string) => Promise<XRefs>;
@@ -40,26 +40,25 @@ export interface XRef {
 }
 
 export function xrefKey(xref: XRef) {
-
   // headings don't include their type in the key
   const key = /^h\d$/.test(xref.type)
     ? xref.id
-    // no colon if there is no type
-    : xref.type.length > 0 ? `${xref.type}:${xref.id}` : xref.id;
+    : // no colon if there is no type
+    xref.type.length > 0
+    ? `${xref.type}:${xref.id}`
+    : xref.id;
 
   // return key with suffix
   return key + xref.suffix;
 }
 
 export function xrefPosition(doc: ProsemirrorNode, xref: string): number {
-
   // -1 if not found
   let xrefPos = -1;
 
   // get type and id
   const xrefInfo = xrefTypeAndId(xref);
   if (xrefInfo) {
-
     const { type, id } = xrefInfo;
     const locator = xrefPositionLocators[type];
     if (locator) {
@@ -74,12 +73,12 @@ export function xrefPosition(doc: ProsemirrorNode, xref: string): number {
             return false;
           }
           // see if we can locate the xref
-          if (locator.hasXRef(markedNode.node, id)) {
+          if (locator.hasXRef(markedNode.node, id, markType)) {
             xrefPos = markedNode.pos;
           }
         });
-
-      } else if (locator.nodeTypes) {
+      } 
+      if (xrefPos === -1 && locator.nodeTypes) {
         // otherwise recursively examine nodes to find the xref
         doc.descendants((node, pos) => {
           // bail if we already found it
@@ -87,33 +86,25 @@ export function xrefPosition(doc: ProsemirrorNode, xref: string): number {
             return false;
           }
           // see if we can locate the xref
-          if (locator.nodeTypes!.includes(node.type.name) &&
-            locator.hasXRef(node, id)) {
+          if (locator.nodeTypes!.includes(node.type.name) && locator.hasXRef(node, id)) {
             xrefPos = pos;
             return false;
           }
         });
       }
-
-
-
-
     }
-
   }
 
   // return the position
   return xrefPos;
 }
 
-
-
 function xrefTypeAndId(xref: string) {
   const colonPos = xref.indexOf(':');
   if (colonPos !== -1) {
     return {
       type: xref.substring(0, colonPos),
-      id: xref.substring(colonPos + 1)
+      id: xref.substring(colonPos + 1),
     };
   } else {
     return null;
@@ -123,21 +114,21 @@ function xrefTypeAndId(xref: string) {
 interface XRefPositionLocator {
   markType?: string;
   nodeTypes?: string[];
-  hasXRef: (node: ProsemirrorNode, id: string) => boolean;
+  hasXRef: (node: ProsemirrorNode, id: string, markType?: MarkType) => boolean;
 }
 
 const xrefPositionLocators: { [key: string]: XRefPositionLocator } = {
-  'h1': headingLocator(),
-  'h2': headingLocator(),
-  'h3': headingLocator(),
-  'h4': headingLocator(),
-  'h5': headingLocator(),
-  'h6': headingLocator(),
-  'fig': {
+  h1: headingLocator(),
+  h2: headingLocator(),
+  h3: headingLocator(),
+  h4: headingLocator(),
+  h5: headingLocator(),
+  h6: headingLocator(),
+  fig: {
     nodeTypes: ['rmd_chunk'],
-    hasXRef: (node: ProsemirrorNode, id: string) => rmdChunkHasXRef(node, 'r', id, /^\{.*[ ,].*fig\.cap\s*=.*\}\s*\n/m)
+    hasXRef: (node: ProsemirrorNode, id: string) => rmdChunkHasXRef(node, 'r', id, /^\{.*[ ,].*fig\.cap\s*=.*\}\s*\n/m),
   },
-  'tab': {
+  tab: {
     nodeTypes: ['rmd_chunk', 'table_container'],
     hasXRef: (node: ProsemirrorNode, id: string) => {
       if (node.type.name === 'rmd_chunk') {
@@ -149,31 +140,38 @@ const xrefPositionLocators: { [key: string]: XRefPositionLocator } = {
       } else {
         return false;
       }
-    }
+    },
   },
-  'eq': {
+  eq: {
+    nodeTypes: ['raw_block'],
     markType: 'math',
-    hasXRef: (node: ProsemirrorNode, id: string) => {
+    hasXRef: (node: ProsemirrorNode, id: string, markType?: MarkType) => {
+      // if it's not a mark then ensure it is tex format before proceeding
+      if (!markType && (node.attrs.format !== kTexFormat)) {
+        return false;
+      }
       const match = node.textContent.match(/^.*\(\\#eq:([a-zA-Z0-9\/-]+)\).*$/m);
       return !!match && match[1].localeCompare(id, undefined, { sensitivity: 'accent' }) === 0;
-    }
+    },
   },
-  'thm': thereomLocator('theorem'),
-  'lem': thereomLocator('lemma'),
-  'cor': thereomLocator('corollary'),
-  'prp': thereomLocator('proposition'),
-  'cnj': thereomLocator('conjecture'),
-  'def': thereomLocator('definition'),
-  'exr': thereomLocator('exercise'),
+  thm: thereomLocator('theorem'),
+  lem: thereomLocator('lemma'),
+  cor: thereomLocator('corollary'),
+  prp: thereomLocator('proposition'),
+  cnj: thereomLocator('conjecture'),
+  def: thereomLocator('definition'),
+  exr: thereomLocator('exercise'),
 };
 
 function rmdChunkHasXRef(node: ProsemirrorNode, engine: string, label: string, pattern?: RegExp) {
   const chunk = rmdChunkEngineAndLabel(node.textContent);
   const match = node.textContent.match(/^\{([a-zA-Z0-9_]+)[\s,]+([a-zA-Z0-9/-]+)/);
   if (chunk) {
-    return chunk.engine.localeCompare(engine, undefined, { sensitivity: 'accent' }) === 0 &&
+    return (
+      chunk.engine.localeCompare(engine, undefined, { sensitivity: 'accent' }) === 0 &&
       chunk.label === label &&
-      (!pattern || !!node.textContent.match(pattern));
+      (!pattern || !!node.textContent.match(pattern))
+    );
   } else {
     return false;
   }
@@ -187,7 +185,7 @@ function headingLocator() {
       // happens to use b/c our xref indexing code also does this (so only ids generated
       // using the 'standard' rules will be in the index)
       return node.attrs.id === id || pandocAutoIdentifier(node.textContent, false) === id;
-    }
+    },
   };
 }
 
@@ -198,18 +196,11 @@ function thereomLocator(engine: string) {
       // look for conventional engine/label
       if (rmdChunkHasXRef(node, engine, id)) {
         return true;
-
       } else {
         // look for explicit label= syntax
         const match = node.textContent.match(/^\{([a-zA-Z0-9_]+)[\s,]+label\s*=\s*['"]([^"']+)['"].*\}/);
-        return !!match &&
-          match[1].localeCompare(engine, undefined, { sensitivity: 'accent' }) === 0 &&
-          match[2] === id;
+        return !!match && match[1].localeCompare(engine, undefined, { sensitivity: 'accent' }) === 0 && match[2] === id;
       }
-    }
+    },
   };
 }
-
-
-
-

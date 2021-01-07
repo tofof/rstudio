@@ -1,7 +1,7 @@
 /*
  * cite-doi.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -13,16 +13,17 @@
  *
  */
 
-import { EditorState, Transaction } from "prosemirror-state";
-import { Slice } from "prosemirror-model";
+import { EditorState, Transaction } from 'prosemirror-state';
+import { Slice } from 'prosemirror-model';
 
-import { findDOI } from "../../api/doi";
+import { findDOI } from '../../api/doi';
 
-import { parseCitation, ParsedCitation } from "./cite";
+import { parseCitation, ParsedCitation } from './cite';
 
 // Parses the transation or state to determine whether the current position
 // represents a citation containing a DOI
 export function doiFromEditingContext(context: EditorState | Transaction): ParsedCitation | undefined {
+  
   const parsedCitation = parseCitation(context);
   if (parsedCitation) {
     const doi = findDOI(parsedCitation.token);
@@ -50,6 +51,3 @@ export function doiFromSlice(context: EditorState | Transaction, slice: Slice): 
     return undefined;
   }
 }
-
-
-

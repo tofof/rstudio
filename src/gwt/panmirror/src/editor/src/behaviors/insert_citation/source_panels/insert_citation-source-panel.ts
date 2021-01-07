@@ -1,11 +1,13 @@
 // Panels get a variety of information as properties to permit them to search
 
-import { WidgetProps } from "../../../api/widgets/react";
+import { WidgetProps } from '../../../api/widgets/react';
 
-import { EditorUI } from "../../../api/ui";
+import { EditorUI } from '../../../api/ui';
 
-import { NavigationTreeNode } from "../../../api/widgets/navigation-tree";
-import { BibliographySource } from "../../../api/bibliography/bibliography";
+import { NavigationTreeNode } from '../../../api/widgets/navigation-tree';
+import { BibliographySource, BibliographyManager } from '../../../api/bibliography/bibliography';
+import { CSL, imageForType } from '../../../api/csl';
+import { suggestCiteId, formatIssuedDate, formatAuthors } from '../../../api/cite';
 
 // citations and add them
 export interface CitationSourcePanelProps extends WidgetProps {
@@ -43,8 +45,16 @@ export interface CitationSourcePanelProvider {
   placeHolderMessage?: string;
   progressMessage?: string;
   warningMessage?: string;
-  typeAheadSearch: (term: string, selectedNode: NavigationTreeNode, existingCitationIds: string[]) => CitationSourcePanelSearchResult | null;
-  search: (term: string, selectedNode: NavigationTreeNode, existingCitationIds: string[]) => Promise<CitationSourcePanelSearchResult>;
+  typeAheadSearch: (
+    term: string,
+    selectedNode: NavigationTreeNode,
+    existingCitationIds: string[],
+  ) => CitationSourcePanelSearchResult | null;
+  search: (
+    term: string,
+    selectedNode: NavigationTreeNode,
+    existingCitationIds: string[],
+  ) => Promise<CitationSourcePanelSearchResult>;
 }
 
 export interface CitationSourcePanelSearchResult {
@@ -76,11 +86,47 @@ export enum CitationSourceListStatus {
   default,
   inProgress,
   noResults,
-  error
+  error,
 }
 
 export function errorForStatus(ui: EditorUI, status: string, providerName: string) {
-  return status === 'nohost' ?
-    ui.context.translateText(`Unable to search ${providerName}. Please check your network connection and try again.`) :
-    ui.context.translateText(`An error occurred while searching ${providerName}.`);
+  return status === 'nohost'
+    ? ui.context.translateText(`Unable to search ${providerName}. Please check your network connection and try again.`)
+    : ui.context.translateText(`An error occurred while searching ${providerName}.`);
+}
+
+
+export function matchExistingSourceCitationListEntry(doi: string, existingIds: string[], ui: EditorUI, bibliographyManager: BibliographyManager) {
+
+  const localSources = bibliographyManager.localSources();
+  const existingSource = localSources.find(source => {
+    if (source.DOI?.toLowerCase() === doi.toLowerCase()) {
+      return source;
+    }
+  });
+  if (existingSource) {
+    return existingSourceToCitationListEntry(existingSource, existingIds, ui);
+  }
+}
+
+function existingSourceToCitationListEntry(csl: CSL, existingIds: string[], ui: EditorUI): CitationListEntry {
+  const providerKey = 'pubmed';
+  return {
+    id: csl.id || suggestCiteId(existingIds, csl),
+    isIdEditable: false,
+    title: csl.title || '',
+    doi: csl.DOI,
+    type: '',
+    date: formatIssuedDate(csl.issued) || '',
+    journal: csl["container-title"],
+    authors: (length: number) => {
+      return formatAuthors(csl.author || [], length);
+    },
+    image: imageForType(ui.images, csl.type)[0],
+    toBibliographySource: async (finalId: string) => {
+      // Generate CSL using the DOI
+      return { ...csl, id: finalId, providerKey };
+    },
+    isSlowGeneratingBibliographySource: true,
+  };
 }

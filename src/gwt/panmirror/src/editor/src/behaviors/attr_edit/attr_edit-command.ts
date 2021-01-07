@@ -1,7 +1,7 @@
 /*
  * attr_edit-command.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -17,7 +17,7 @@ import { EditorState, Transaction, NodeSelection } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { Mark, Node as ProsemirrorNode } from 'prosemirror-model';
 
-import { findParentNodeOfType } from 'prosemirror-utils';
+import { findParentNodeOfType, NodeWithPos } from 'prosemirror-utils';
 
 import { EditorUI } from '../../api/ui';
 import { pandocAttrInSpec } from '../../api/pandoc_attr';
@@ -36,7 +36,11 @@ export class AttrEditCommand extends ProsemirrorCommand {
   }
 }
 
-export function attrEditCommandFn(ui: EditorUI, pandocExtensions: PandocExtensions, editors: AttrEditOptions[]) {
+export function attrEditCommandFn(
+  ui: EditorUI, 
+  pandocExtensions: PandocExtensions, 
+  editors: AttrEditOptions[]
+) {
   return (state: EditorState, dispatch?: (tr: Transaction<any>) => void, view?: EditorView) => {
     // see if there is an active mark with attrs or a parent node with attrs
     const marks = state.storedMarks || state.selection.$head.marks();
@@ -91,6 +95,38 @@ export function attrEditCommandFn(ui: EditorUI, pandocExtensions: PandocExtensio
   };
 }
 
+export function attrEditNodeCommandFn(nodeWithPos: NodeWithPos, 
+                                      ui: EditorUI, 
+                                      pandocExtensions: PandocExtensions, 
+                                      editors: AttrEditOptions[]) {
+  
+  return (state: EditorState, dispatch?: (tr: Transaction<any>) => void, view?: EditorView) => {
+
+    // alias
+    const { node, pos } = nodeWithPos;
+
+    // registered editor
+    const editor = editors.find(ed => ed.type(state.schema) === node!.type)!;
+    if (editor && editor.editFn) {
+      return editor.editFn()(state, dispatch, view);
+    }
+
+    // generic editor
+    async function asyncEditAttrs() {
+      if (dispatch) {
+        await editNodeAttrs(node!, pos, state, dispatch, ui, pandocExtensions);
+        if (view) {
+          view.focus();
+        }
+      }
+    }
+    asyncEditAttrs();
+
+    // return true
+    return true;
+  };
+}
+
 async function editMarkAttrs(
   mark: Mark,
   state: EditorState,
@@ -122,7 +158,7 @@ async function editNodeAttrs(
   state: EditorState,
   dispatch: (tr: Transaction<any>) => void,
   ui: EditorUI,
-  pandocExtensions: PandocExtensions
+  pandocExtensions: PandocExtensions,
 ): Promise<void> {
   const attrs = node.attrs;
   const result = await ui.dialogs.editAttr({ ...attrs }, idHint(node, pandocExtensions));
@@ -136,11 +172,8 @@ async function editNodeAttrs(
   }
 }
 
-
 function idHint(node: ProsemirrorNode, pandocExtensions: PandocExtensions) {
-
   if (node.type === node.type.schema.nodes.heading) {
-
     const unemoji = pandocExtensions.gfm_auto_identifiers;
     const text = fragmentText(node.content, unemoji);
 
@@ -149,12 +182,7 @@ function idHint(node: ProsemirrorNode, pandocExtensions: PandocExtensions) {
     } else {
       return pandocAutoIdentifier(text, pandocExtensions.ascii_identifiers);
     }
-
-
   } else {
-
     return undefined;
-
   }
 }
-

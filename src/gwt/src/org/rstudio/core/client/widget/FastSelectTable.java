@@ -1,7 +1,7 @@
 /*
  * FastSelectTable.java
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -25,6 +25,7 @@ import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.ui.ScrollPanel;
 import com.google.gwt.user.client.ui.Widget;
+import org.rstudio.core.client.ClassIds;
 import org.rstudio.core.client.Rectangle;
 import org.rstudio.core.client.command.KeyboardShortcut;
 import org.rstudio.core.client.dom.DomUtils;
@@ -55,7 +56,8 @@ public class FastSelectTable<TItemInput, TItemOutput, TItemOutput2> extends Widg
    public FastSelectTable(ItemCodec<TItemInput, TItemOutput, TItemOutput2> codec,
                           String selectedClassName,
                           boolean focusable,
-                          boolean allowMultiSelect)
+                          boolean allowMultiSelect,
+                          String title)
    {
       codec_ = codec;
       selectedClassName_ = selectedClassName;
@@ -69,6 +71,7 @@ public class FastSelectTable<TItemInput, TItemOutput, TItemOutput2> extends Widg
       table_.setCellSpacing(0);
       table_.setBorder(0);
       table_.getStyle().setCursor(Cursor.DEFAULT);
+      setClassId(title);
       setElement(table_);
 
       addMouseDownHandler(new MouseDownHandler()
@@ -106,6 +109,11 @@ public class FastSelectTable<TItemInput, TItemOutput, TItemOutput2> extends Widg
             handleKeyDown(event);
          }
       });
+   }
+   
+   public void setClassId(String name)
+   {
+      table_.setClassName(ClassIds.FAST_SELECT_TABLE + "_" + ClassIds.idSafeString(name));
    }
 
    public void setCellPadding(int padding)

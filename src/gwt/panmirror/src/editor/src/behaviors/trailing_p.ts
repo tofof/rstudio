@@ -1,7 +1,7 @@
 /*
  * trailing_p.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -69,8 +69,7 @@ function insertTrailingPTransform(editingNode: ContentNodeWithPos) {
 function requiresTrailingP(selection: Selection) {
   const editingRoot = editingRootNode(selection);
   if (editingRoot) {
-    return !isParagraphNode(editingRoot.node.lastChild) ||
-      isDisplayMathNode(editingRoot.node.lastChild);
+    return !isParagraphNode(editingRoot.node.lastChild) || isDisplayMathNode(editingRoot.node.lastChild);
   } else {
     return false;
   }

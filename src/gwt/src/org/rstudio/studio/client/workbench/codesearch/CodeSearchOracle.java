@@ -1,7 +1,7 @@
 /*
  * CodeSearchOracle.java
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -407,13 +407,18 @@ public class CodeSearchOracle extends SuggestOracle
       }
       
       // disambiguate them
-      ArrayList<String> displayLabels = DuplicateHelper.getPathLabels(filePaths,
-                                                                      true);
+      ArrayList<String> displayLabels =
+            DuplicateHelper.getPathLabels(filePaths, true);
+      
       ArrayList<CodeSearchSuggestion> newSuggestions =
-                            new ArrayList<CodeSearchSuggestion>(suggestions);
-      for (int i=0; i<displayLabels.size(); i++)
-         newSuggestions.get(i).setFileDisplayString(filePaths.get(i),
-                                                    displayLabels.get(i));
+            new ArrayList<CodeSearchSuggestion>(suggestions);
+      
+      for (int i = 0; i < displayLabels.size(); i++)
+      {
+         newSuggestions.get(i).setFileDisplayString(
+               filePaths.get(i),
+               displayLabels.get(i));
+      }
       
       
       // cache the suggestions (up to 15 active result sets cached)

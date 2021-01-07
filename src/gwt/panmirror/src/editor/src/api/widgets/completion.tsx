@@ -1,7 +1,7 @@
 /*
  * completion.tsx
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -39,7 +39,14 @@ export const CompletionItemView: React.FC<CompletionItemViewProps> = props => {
   return (
     <div className={className} style={style}>
       <div className={'pm-completion-item-type'}>
-        {props.imageAdornment ? <img className={'pm-completion-image-adorn pm-block-border-color pm-background-color'} src={props.imageAdornment} /> : undefined}
+        {props.imageAdornment ? (
+          <img
+            className={'pm-completion-image-adorn pm-block-border-color pm-background-color'}
+            src={props.imageAdornment}
+          />
+        ) : (
+          undefined
+        )}
         <img className={'pm-completion-item-icon pm-block-border-color'} src={props.image} />
       </div>
       <div className={'pm-completion-item-summary'} style={{ width: props.width - 40 - 36 + 'px' }}>
@@ -50,8 +57,8 @@ export const CompletionItemView: React.FC<CompletionItemViewProps> = props => {
         {props.htmlTitle ? (
           <div className={'pm-completion-item-subTitle'} dangerouslySetInnerHTML={{ __html: props.subTitle || '' }} />
         ) : (
-            <div className={'pm-completion-item-subTitle'}>{props.subTitle}</div>
-          )}
+          <div className={'pm-completion-item-subTitle'}>{props.subTitle}</div>
+        )}
       </div>
     </div>
   );

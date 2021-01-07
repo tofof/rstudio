@@ -1,7 +1,7 @@
 /*
  * command.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -20,12 +20,13 @@ import { EditorState, Transaction } from 'prosemirror-state';
 import { findParentNode, findParentNodeOfType, setTextSelection } from 'prosemirror-utils';
 import { EditorView } from 'prosemirror-view';
 
-import { markIsActive } from './mark';
+import { markIsActive, getMarkRange } from './mark';
 import { canInsertNode, nodeIsActive } from './node';
 import { pandocAttrInSpec, pandocAttrAvailable, pandocAttrFrom } from './pandoc_attr';
 import { isList } from './list';
 import { OmniInsert } from './omni_insert';
 import { EditorUIPrefs, kListSpacingTight } from './ui';
+import { selectionIsWithinRange, selectionHasRange } from './selection';
 
 export enum EditorCommandId {
   // text editing
@@ -42,6 +43,7 @@ export enum EditorCommandId {
   Superscript = '0200D2FC-B5AF-423B-8B7A-4A7FC3DAA6AF',
   Subscript = '3150428F-E468-4E6E-BF53-A2713E59B4A0',
   Smallcaps = '41D8030F-5E8B-48F2-B1EE-6BC40FD502E4',
+  Underline = '7F0E6AE2-08F4-4594-9BA2-E6B8B27FA8F7',
   Paragraph = '20EC2695-75CE-4DCD-A644-266E9F5F5913',
   Heading1 = '5B77642B-923D-4440-B85D-1A27C9CF9D77',
   Heading2 = '42985A4B-6BF2-4EEF-AA30-3E84A8B9111C',
@@ -133,7 +135,7 @@ export enum EditorCommandId {
 
   // outline
   GoToNextSection = 'AE827BDA-96F8-4E84-8030-298D98386765',
-  GoToPreviousSection = 'E6AA728C-2B75-4939-9123-0F082837ACDF'
+  GoToPreviousSection = 'E6AA728C-2B75-4939-9123-0F082837ACDF',
 }
 
 export interface EditorCommand {
@@ -184,7 +186,7 @@ export class MarkCommand extends ProsemirrorCommand {
   public readonly attrs: object;
 
   constructor(id: EditorCommandId, keymap: string[], markType: MarkType, attrs = {}) {
-    super(id, keymap, toggleMark(markType, attrs) as CommandFn);
+    super(id, keymap, toggleMarkType(markType, attrs) as CommandFn);
     this.markType = markType;
     this.attrs = attrs;
   }
@@ -237,30 +239,50 @@ export class WrapCommand extends NodeCommand {
 
 export class InsertCharacterCommand extends ProsemirrorCommand {
   constructor(id: EditorCommandId, ch: string, keymap: string[]) {
-    super(
-      id,
-      keymap,
-      (state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView) => {
-
-        // enable/disable command
-        const schema = state.schema;
-        if (!canInsertNode(state, schema.nodes.text)) {
-          return false;
-        }
-        if (dispatch) {
-          const tr = state.tr;
-          tr.replaceSelectionWith(schema.text(ch), true).scrollIntoView();
-          dispatch(tr);
-        }
-
-        return true;
+    super(id, keymap, (state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView) => {
+      // enable/disable command
+      const schema = state.schema;
+      if (!canInsertNode(state, schema.nodes.text)) {
+        return false;
       }
-    );
+      if (dispatch) {
+        const tr = state.tr;
+        tr.replaceSelectionWith(schema.text(ch), true).scrollIntoView();
+        dispatch(tr);
+      }
+
+      return true;
+    });
   }
 }
 
-
 export type CommandFn = (state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView) => boolean;
+
+export function toggleMarkType(markType: MarkType, attrs?: { [key: string]: any }) {
+  const defaultToggleMark = toggleMark(markType, attrs);
+
+  return (state: EditorState, dispatch?: (tr: Transaction) => void) => {
+    // disallow non-code marks when the selection is contained within a code mark
+    // (this is a pandoc constraint). note that we can allow them if the selection
+    // contains the code mark range entirely (as in that case the code mark will
+    // nest within the other mark)
+    if (markType !== state.schema.marks.code) {
+      if (markIsActive(state, state.schema.marks.code)) {
+        const codeRange = getMarkRange(state.selection.$anchor, state.schema.marks.code);
+        if (
+          codeRange &&
+          selectionIsWithinRange(state.selection, codeRange) &&
+          !selectionHasRange(state.selection, codeRange)
+        ) {
+          return false;
+        }
+      }
+    }
+
+    // default implementation
+    return defaultToggleMark(state, dispatch);
+  };
+}
 
 export function toggleList(listType: NodeType, itemType: NodeType, prefs: EditorUIPrefs): CommandFn {
   return (state: EditorState, dispatch?: (tr: Transaction<any>) => void, view?: EditorView) => {

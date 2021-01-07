@@ -1,7 +1,7 @@
 /*
  * Workbench.java
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -796,8 +796,9 @@ public class Workbench implements BusyEvent.Handler,
    private final ConsoleDispatcher consoleDispatcher_;
    private final Provider<GitState> pGitState_;
    private final TimeBufferedCommand metricsChangedCommand_;
-   private final SourceWindowManager sourceWindowManager_;
    private WorkbenchMetrics lastWorkbenchMetrics_;
    private final WorkbenchNewSession newSession_;
    private boolean nearQuotaWarningShown_ = false;
+   
+   @SuppressWarnings("unused") private final SourceWindowManager sourceWindowManager_;
 }

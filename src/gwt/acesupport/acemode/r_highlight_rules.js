@@ -1,7 +1,7 @@
 /*
  * r_highlight_rules.js
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * The Initial Developer of the Original Code is
  * Ajax.org B.V.
@@ -184,8 +184,15 @@ define("mode/r_highlight_rules", ["require", "exports", "module"], function(requ
 
   var RHighlightRules = function()
   {
+    // NOTE: The backslash character is an experimental alias
+    // for the 'function' symbol, and can be used for defining
+    // short-hand functions, e.g.
+    //
+    //     \(x) x + 1
+    //
     var keywords = lang.arrayToMap([
-      "function", "if", "else", "in", "break", "next", "repeat", "for", "while"
+      "\\", "function", "if", "else", "in",
+      "break", "next", "repeat", "for", "while"
     ]);
 
     var specialFunctions = lang.arrayToMap([
@@ -201,7 +208,9 @@ define("mode/r_highlight_rules", ["require", "exports", "module"], function(requ
       "NA_complex_"
     ]);
 
-    var reIdentifier = "[a-zA-Z.][a-zA-Z0-9._]*";
+    // NOTE: We accept '\' as a standalone identifier here
+    // so that it can be parsed as the 'function' alias symbol
+    var reIdentifier = "(?:\\\\|[a-zA-Z.][a-zA-Z0-9._]*)";
 
     var $complements = {
       "{" : "}",
@@ -253,13 +262,12 @@ define("mode/r_highlight_rules", ["require", "exports", "module"], function(requ
           
           // initialize stack
           stack = stack || [];
-          stack.length = 2;
 
           // save current state in stack
           stack[0] = state;
 
           // save the expected suffix for exit
-          stack[1] =
+          stack[2] =
             $complements[value[value.length - 1]] +
             value.substring(2, value.length - 1) +
             value[1];
@@ -464,7 +472,7 @@ define("mode/r_highlight_rules", ["require", "exports", "module"], function(requ
         token : "string",
         regex : "[\\]})][-]*['\"]",
         onMatch: function(value, state, stack, line) {
-          this.next = (value === stack[1]) ? stack[0] : "rawstring";
+          this.next = (value === stack[2]) ? stack[0] : "rawstring";
           return this.token;
         }
       },

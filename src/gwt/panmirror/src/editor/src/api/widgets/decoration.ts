@@ -1,7 +1,7 @@
 /*
  * decoration.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -55,9 +55,7 @@ export function textRangePopupDecorationPosition(
   const positionRight = rangeCoords.left + maxWidth > editingBox.right;
   if (positionRight) {
     const rightCoords = view.coordsAtPos(range.to);
-    const rightPos = rangeCoords.top === rightCoords.top
-      ? editingBox.right - rightCoords.right
-      : 0;
+    const rightPos = rangeCoords.top === rightCoords.top ? editingBox.right - rightCoords.right : 0;
     style = {
       ...popupStyle,
       right: rightPos + kPixelUnit,
@@ -82,12 +80,14 @@ export function textRangePopupDecorationPosition(
   }
 
   // calculate key
-  const key = Object.keys(style).map(attrib => `${attrib}=${style[attrib]}`).join(';');
+  const key = Object.keys(style)
+    .map(attrib => `${attrib}=${style[attrib]}`)
+    .join(';');
 
   return {
     pos: editingNode.pos + editingNode.node.nodeSize - 1,
     style,
-    key
+    key,
   };
 }
 

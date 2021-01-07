@@ -1,7 +1,7 @@
 /*
  * server.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -13,14 +13,13 @@
  *
  */
 
-import { PandocServer } from "./pandoc";
-import { CrossrefServer } from "./crossref";
+import { PandocServer } from './pandoc';
+import { CrossrefServer } from './crossref';
 import { ZoteroServer } from './zotero';
-import { XRefServer } from "./xref";
-import { DOIServer } from "./doi";
-import { PubMedServer } from "./pubmed";
-import { DataCiteServer } from "./datacite";
-
+import { XRefServer } from './xref';
+import { DOIServer } from './doi';
+import { PubMedServer } from './pubmed';
+import { DataCiteServer } from './datacite';
 
 export interface EditorServer {
   readonly pandoc: PandocServer;

@@ -1,7 +1,7 @@
 /*
  * SourceMarkerList.java
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -55,7 +55,8 @@ public class SourceMarkerList extends Composite
             codec_,
             res_.styles().selectedRow(),
             true,
-            false);
+            false,
+            "Source Marker Item Table");
       setWidths();
       errorTable_.setStyleName(res_.styles().table());
       errorTable_.setSize("100%", "100%");

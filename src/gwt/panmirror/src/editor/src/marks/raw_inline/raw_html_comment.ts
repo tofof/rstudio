@@ -1,7 +1,7 @@
 /*
  * raw_html-comment.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -15,11 +15,10 @@
 
 import { Schema, Mark, Fragment, Node as ProsemirrorNode } from 'prosemirror-model';
 import { Transaction, TextSelection, EditorState } from 'prosemirror-state';
-import { toggleMark } from 'prosemirror-commands';
 
 import { setTextSelection } from 'prosemirror-utils';
 
-import { EditorCommandId, ProsemirrorCommand } from '../../api/command';
+import { EditorCommandId, ProsemirrorCommand, toggleMarkType } from '../../api/command';
 import { canInsertNode } from '../../api/node';
 import { ProsemirrorWriter, PandocOutput } from '../../api/pandoc';
 import { Extension, ExtensionContext } from '../../api/extension';
@@ -117,6 +116,7 @@ const extension = (context: ExtensionContext): Extension | null => {
               kHTMLCommentMarkRegEx,
               markType,
               match => commentMarkAttribs(match[1]),
+              () => true,
               match => match[1],
             );
           },
@@ -143,7 +143,7 @@ export class InsertHTMLCommentCommand extends ProsemirrorCommand {
         }
 
         // make sure we can apply this mark here
-        if (!toggleMark(schema.marks.raw_html)(state)) {
+        if (!toggleMarkType(schema.marks.raw_html)(state)) {
           return false;
         }
 

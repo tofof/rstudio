@@ -1,7 +1,7 @@
 /*
  * code.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -15,7 +15,7 @@
 
 import { Plugin, PluginKey } from 'prosemirror-state';
 
-import { CodeViewOptions, canInsertNodeAtPos } from "./node";
+import { CodeViewOptions, canInsertNodeAtPos } from './node';
 import { ResolvedPos, Slice, Fragment } from 'prosemirror-model';
 
 export const kCodeAttr = 0;
@@ -31,7 +31,6 @@ export function codeNodeSpec() {
     isolating: true,
   };
 }
-
 
 export function codeViewClipboardPlugin(codeViews: { [key: string]: CodeViewOptions }) {
   return new Plugin({

@@ -1,7 +1,7 @@
 /*
  * ace-node-views.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -13,17 +13,16 @@
  *
  */
 
-import { GapCursor } from "prosemirror-gapcursor";
-import { AceNodeView } from "./ace";
-import { EditorView } from "prosemirror-view";
+import { GapCursor } from 'prosemirror-gapcursor';
+import { AceNodeView } from './ace';
+import { EditorView } from 'prosemirror-view';
 
 /**
- * Track all Ace node view instances to implement additional behavior 
+ * Track all Ace node view instances to implement additional behavior
  * (e.g. gap cursor for clicks between editor instances)
  */
 
 export class AceNodeViews {
-
   private nodeViews: AceNodeView[];
 
   constructor() {
@@ -41,23 +40,20 @@ export class AceNodeViews {
   }
 
   public handleClick(view: EditorView, event: Event): boolean {
-
     // alias to mouseEvent
     const mouseEvent = event as MouseEvent;
 
     // see if the click is between 2 contiguously located node views
     for (const nodeView of this.nodeViews) {
-
       // gap cursor we might detect
       let gapCursor: GapCursor | null = null;
 
-      // get the position 
+      // get the position
       const pos = nodeView.getPos();
       const $pos = view.state.doc.resolve(pos);
 
       // if the previous node is code, see if the click is between the 2 nodes
       if ($pos.nodeBefore && $pos.nodeBefore.type.spec.code) {
-
         // get our bounding rect
         const dom = nodeView.dom;
         const nodeViewRect = dom.getBoundingClientRect();
@@ -70,13 +66,19 @@ export class AceNodeViews {
 
           // check for a click between the two nodes
           const mouseY = mouseEvent.clientY;
-          if (mouseY > (prevNodeRect.top + prevNodeRect.height) && mouseY < (nodeViewRect.top)) {
+          if (mouseY > prevNodeRect.top + prevNodeRect.height && mouseY < nodeViewRect.top) {
             gapCursor = new GapCursor($pos, $pos);
           }
         }
 
         // if there is no previous node and the click is above us then gap cursor above
-      } else if (!$pos.nodeBefore && $pos.depth === 1 && (mouseEvent.clientY < nodeView.dom.getBoundingClientRect().top)) {
+        // (only do this if the cursor is within 150 pixels of the left edge)
+      } else if (
+        !$pos.nodeBefore &&
+        $pos.depth === 1 &&
+        mouseEvent.clientY < nodeView.dom.getBoundingClientRect().top &&
+        Math.abs(mouseEvent.clientX - nodeView.dom.getBoundingClientRect().left) < 150
+      ) {
         gapCursor = new GapCursor($pos, $pos);
       }
 
@@ -87,7 +89,7 @@ export class AceNodeViews {
         // notify the node views that we are setting a gap cursor
         this.nodeViews.forEach(ndView => ndView.setGapCursorPending(true));
 
-        // ensure the view is focused 
+        // ensure the view is focused
         view.focus();
 
         // set the selection
@@ -106,5 +108,4 @@ export class AceNodeViews {
 
     return false;
   }
-
 }

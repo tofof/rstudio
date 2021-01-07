@@ -2,7 +2,7 @@
 #
 # generate-options.R
 #
-# Copyright (C) 2020 by RStudio, PBC
+# Copyright (C) 2021 by RStudio, PBC
 #
 # Unless you have received this program directly from RStudio pursuant
 # to the terms of a commercial license agreement with RStudio, then
@@ -38,7 +38,7 @@ generateCopyright <- function (filename) {
    sprintf("/*
  * %s
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -778,7 +778,11 @@ main <- function () {
       generate(optionsFile)
    }
 
-   cat("Options generated successfully\n")
+   cat("Options generated successfully, verifying resulting options...\n")
+   cat("Press [enter] to continue or CTRL+C to skip")
+   a <- readLines("stdin",n=1);
+
+   system("./report-options.sh")
 }
 
 main()

@@ -1,7 +1,7 @@
 /*
  * emoji.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -38,7 +38,6 @@ import {
 import { emojiCompletionHandler, emojiSkintonePreferenceCompletionHandler } from './emoji-completion';
 import { getMarkAttrs } from '../../api/mark';
 
-
 const extension = (context: ExtensionContext): Extension | null => {
   const { ui } = context;
 
@@ -70,7 +69,7 @@ const extension = (context: ExtensionContext): Extension | null => {
             return [
               'span',
               {
-                class: 'emoji',
+                class: 'emoji pm-emoji-font',
                 title: ':' + mark.attrs.emojihint + ':',
                 'data-emojihint': mark.attrs.emojihint,
                 'data-emojiprompt': mark.attrs.prompt,
@@ -158,8 +157,10 @@ const extension = (context: ExtensionContext): Extension | null => {
           // create mark transation wrapper
           const markTr = new MarkTransaction(tr);
 
-          const textNodes = mergedTextNodes(markTr.doc, (_node: ProsemirrorNode, _pos: number, parentNode: ProsemirrorNode) =>
-            parentNode.type.allowsMarkType(schema.marks.emoji),
+          const textNodes = mergedTextNodes(
+            markTr.doc,
+            (_node: ProsemirrorNode, _pos: number, parentNode: ProsemirrorNode) =>
+              parentNode.type.allowsMarkType(schema.marks.emoji),
           );
 
           textNodes.forEach(textNode => {
@@ -171,11 +172,12 @@ const extension = (context: ExtensionContext): Extension | null => {
             const possibleMarks = new Map<number, Array<{ to: number; emoji: Emoji }>>();
             for (const emoji of emojis(ui.prefs.emojiSkinTone())) {
               emojiForAllSkinTones(emoji).forEach(skinToneEmoji => {
-                const charLoc = textNode.text.indexOf(skinToneEmoji.emoji);
-                if (charLoc !== -1) {
+                let charLoc = textNode.text.indexOf(skinToneEmoji.emoji);
+                while (charLoc !== -1) {
                   const from = textNode.pos + charLoc;
                   const to = from + skinToneEmoji.emoji.length;
                   possibleMarks.set(from, (possibleMarks.get(from) || []).concat({ to, emoji: skinToneEmoji }));
+                  charLoc = textNode.text.indexOf(skinToneEmoji.emoji, charLoc + 1);
                 }
               });
             }

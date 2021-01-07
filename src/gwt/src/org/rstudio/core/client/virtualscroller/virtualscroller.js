@@ -1,7 +1,7 @@
 /*
  * virtualscroller.js
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -27,8 +27,9 @@ var VirtualScroller;
       //  *** _CONSTANTS ***
       this._DEBUG = false;
       this._SCROLL_DEBOUNCE_MS = 500;
-      this._BUCKET_MAX_SIZE = 50;
+      this._BUCKET_MAX_HEIGHT = 50;
       this._MAX_VISIBLE_BUCKETS = 10;
+      this._MAX_NEWLINES = 1000;
 
       // we use this style to keep the elements in the DOM for screen readers
       this._HIDDEN_STYLE = visuallyHiddenClass;
@@ -51,6 +52,7 @@ var VirtualScroller;
       self._isAtBottomBucket = self._isAtBottomBucket.bind(self);
       self._isAtTopBucket = self._isAtTopBucket.bind(self);
       self._isBucketHidden = self._isBucketHidden.bind(self);
+      self._isBucketFull = self._isBucketFull.bind(self);
       self._jumpToBottom = self._jumpToBottom.bind(self);
       self._moveWindow = self._moveWindow.bind(self);
       self._onParentScroll = self._onParentScroll.bind(self);
@@ -83,6 +85,11 @@ var VirtualScroller;
         } else {
           ancestor = ancestor.parentElement;
         }
+      }
+
+      // validate that we've successfully found ace_scroller
+      if (self.scrollerEle == null) {
+        throw "internal error: virtual scroller could not find ace_scroller element";
       }
 
       // jump to latest button
@@ -149,6 +156,16 @@ var VirtualScroller;
       }
     },
 
+    _isBucketFull: function(bucket) {
+      var height = 0;
+      var contents = bucket.innerText;
+
+      // add height for each new line
+      height += contents.split(/\n/).length - 1;
+
+      return height >= this._BUCKET_MAX_HEIGHT;
+    },
+
     _hideBucket: function(index) {
       if (!!this.buckets[index] && !this._isBucketHidden(index))
         this.buckets[index].classList.add(this._HIDDEN_STYLE);
@@ -172,11 +189,11 @@ var VirtualScroller;
     },
 
     _scrolledToTop: function() {
-      return this.scrollerEle.scrollTop < 1;
+      return this.scrollerEle.scrollTop < 4;
     },
 
     _scrolledToBottom: function() {
-      return Math.abs(this.scrollerEle.scrollHeight - this.scrollerEle.offsetHeight - this.scrollerEle.scrollTop) < 1;
+      return Math.abs(this.scrollerEle.scrollHeight - this.scrollerEle.offsetHeight - this.scrollerEle.scrollTop) < 4;
     },
 
     // this BOUND callback function
@@ -251,17 +268,35 @@ var VirtualScroller;
     },
 
     append: function (element) {
-      if (this.getCurBucket().childElementCount >= this._BUCKET_MAX_SIZE) {
+      if (element === null)
+        return;
+
+      var keepScrolled = !!this.scrollerEle && this._scrolledToBottom();
+
+      if (this._isBucketFull(this.getCurBucket())) {
         this._createAndAddNewBucket();
       }
+      this.prune(element);
       this.getCurBucket().appendChild(element);
       this._jumpToBottom();
+      if (keepScrolled && !!this.scrollerEle)  {
+        this.scrollerEle.scrollTop = this.scrollerEle.scrollHeight;
+      }
     },
 
     clear: function() {
+      var i = 0;
+
       // remove all buckets from the DOM
-      for (var i = 0; i < this.buckets.length; i++) {
+      for (i = 0; i < this.buckets.length; i++) {
         this.buckets[i].remove();
+      }
+
+      // remove possible vestigial contents of the parent element that
+      // may have snuck in before the VirtualScroller was initialized
+      var eleChildren = this.consoleEle.children;
+      while (this.consoleEle.children.length > 0) {
+          this.consoleEle.removeChild(this.consoleEle.children[0]);
       }
 
       this._setJumpToLatestVisible(false);
@@ -271,10 +306,41 @@ var VirtualScroller;
       this._createAndAddNewBucket();
     },
 
+    // element line number is hard capped at 1000 on the server, the VirtualConsole range
+    // overwriting gets partially obviated by the virtualscroller so ensure that this
+    // limit is also respected here
+    prune: function(element) {
+      var text = element.innerText;
+      var newlineMatch = text.match(/\n/g);
+      if (newlineMatch === null) return;
+
+      // because IE11 doesn't support String.matchAll there isn't a much better option than this
+      var newlinesToPrune = newlineMatch.length - this._MAX_NEWLINES
+      var indexToSlice = 0;
+
+      while (newlinesToPrune > 0) {
+        indexToSlice = text.indexOf("\n", indexToSlice + 1);
+        newlinesToPrune -= 1;
+      }
+
+      if (indexToSlice > 0)
+        element.innerText = element.innerText.substring(indexToSlice);
+    },
+
+    ensureStartingOnNewLine: function() {
+      if (this.getCurBucket().children < 1)
+        return;
+
+      // get the last element from the last bucket
+      var lastText = this.getCurBucket().lastElementChild.innerHTML;
+      if (!lastText.endsWith("\n"))
+        this.getCurBucket().lastElementChild.innerHTML = lastText + "\n";
+    },
+
     _createAndAddNewBucket: function() {
       var newBucket = document.createElement("span");
 
-      // before we're initialized buckets, live in the ether
+      // before we're initialized, buckets live in the ether
       if (this.INITIALIZED)
         this.consoleEle.appendChild(newBucket);
 

@@ -1,7 +1,7 @@
 /*
  * SessionHttpConnectionUtils.cpp
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -38,6 +38,16 @@
 #include <session/SessionMain.hpp>
 #include <session/SessionOptions.hpp>
 #include <session/projects/ProjectsSettings.hpp>
+
+namespace rstudio {
+namespace session {
+namespace console_input {
+
+bool executing();
+
+}
+}
+}
 
 namespace rstudio {
 namespace session {
@@ -231,6 +241,7 @@ bool checkForInterrupt(boost::shared_ptr<HttpConnection> ptrConnection)
    Error error = parseJsonRpcRequest(
             ptrConnection->request().body(),
             &request);
+   
    if (error)
    {
       ptrConnection->sendJsonRpcError(error);
@@ -248,11 +259,24 @@ bool checkForInterrupt(boost::shared_ptr<HttpConnection> ptrConnection)
       // to ensure that the R session always receives an interrupt, we explicitly
       // set the interrupt flag even though the normal interrupt handler would do
       // the same.
-      r::exec::setInterruptsPending(true);
-      core::system::interrupt();
+      //
+      // NOTE: if the R session is currently waiting for input via stdin, then
+      // a plain interrupt will not be sufficient to stop the read. it's not
+      // immediately clear why this is the case, but if we detect this case then
+      // we avoid sending an interrupt, and instead tell the client that R is not
+      // busy and it should instead send an explicit request to canncel the current
+      // console read request.
+      bool busy = session::console_input::executing();
+      if (busy)
+      {
+         r::exec::setInterruptsPending(true);
+         core::system::interrupt();
+      }
 
-      // acknowledge request
-      ptrConnection->sendJsonRpcResponse();
+      // send response
+      json::JsonRpcResponse response;
+      response.setResult(busy);
+      ptrConnection->sendJsonRpcResponse(response);
    }
 
    return true;

@@ -1,7 +1,7 @@
 /*
  * math.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -13,9 +13,8 @@
  *
  */
 
-
-import { EditorUI } from "./ui";
-import { PandocToken } from "./pandoc";
+import { EditorUI } from './ui';
+import { PandocToken } from './pandoc';
 
 export const kMathType = 0;
 export const kMathContent = 1;
@@ -30,13 +29,10 @@ export interface EditorMath {
 }
 
 export function editorMath(ui: EditorUI): EditorMath {
-
   // return a promise that will typeset this node's math (including retrying as long as is
   // required if the element is not yet connected to the DOM)
   return {
-
     typeset: (el: HTMLElement, math: string, priority: boolean): Promise<boolean> => {
-
       return new Promise(resolve => {
         // regular typeset if we are already connected
         if (el.isConnected) {
@@ -51,9 +47,7 @@ export function editorMath(ui: EditorUI): EditorMath {
           }, 100);
         }
       });
-
-
-    }
+    },
   };
 }
 

@@ -1,7 +1,7 @@
 /*
  * event-types.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -25,6 +25,7 @@ export const StateChangeEvent = makeEventType('StateChange');
 export const ResizeEvent = makeEventType('Resize');
 export const LayoutEvent = makeEventType('Layout');
 export const ScrollEvent = makeEventType('Scroll');
+export const BlurEvent = makeEventType('Blur');
 export const FocusEvent = makeEventType<ProsemirrorNode>('Focus');
 export const DispatchEvent = makeEventType<Transaction>('Dispatch');
 export const NavigateEvent = makeEventType<Navigation>('Navigate');

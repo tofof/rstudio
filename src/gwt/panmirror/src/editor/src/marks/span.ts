@@ -1,7 +1,7 @@
 /*
  * span.ts
  *
- * Copyright (C) 2020 by RStudio, PBC
+ * Copyright (C) 2021 by RStudio, PBC
  *
  * Unless you have received this program directly from RStudio pursuant
  * to the terms of a commercial license agreement with RStudio, then
@@ -22,7 +22,14 @@ import { ProsemirrorCommand, EditorCommandId } from '../api/command';
 import { EditorUI } from '../api/ui';
 import { markIsActive, getMarkAttrs, getSelectionMarkRange } from '../api/mark';
 import { PandocOutput, PandocTokenType, PandocToken } from '../api/pandoc';
-import { pandocAttrSpec, pandocAttrReadAST, pandocAttrParseDom, pandocAttrToDomAttr, kSpanAttr, kSpanChildren } from '../api/pandoc_attr';
+import {
+  pandocAttrSpec,
+  pandocAttrReadAST,
+  pandocAttrParseDom,
+  pandocAttrToDomAttr,
+  kSpanAttr,
+  kSpanChildren,
+} from '../api/pandoc_attr';
 
 const extension = (context: ExtensionContext) => {
   const { pandocExtensions, ui } = context;
