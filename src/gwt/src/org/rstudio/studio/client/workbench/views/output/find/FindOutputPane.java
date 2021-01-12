@@ -14,6 +14,7 @@
  */
 package org.rstudio.studio.client.workbench.views.output.find;
 
+import com.google.gwt.aria.client.Roles;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.dom.client.TableRowElement;
@@ -132,6 +133,7 @@ public class FindOutputPane extends WorkbenchPane
          }
       });
       FormLabel replaceLabel = new FormLabel("Replace with: ", replaceTextBox_);
+      Roles.getTextboxRole().setAriaLabelProperty(replaceTextBox_.getElement(), "Replace with");
       replaceToolbar.addLeftWidget(replaceLabel);
       replaceToolbar.addLeftWidget(replaceTextBox_);
 

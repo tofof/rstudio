@@ -113,7 +113,8 @@ public class FastSelectTable<TItemInput, TItemOutput, TItemOutput2> extends Widg
    
    public void setClassId(String name)
    {
-      table_.setClassName(ClassIds.FAST_SELECT_TABLE + "_" + ClassIds.idSafeString(name));
+      ClassIds.assignClassId(table_,
+         ClassIds.FAST_SELECT_TABLE + "_" + ClassIds.idSafeString(name));
    }
 
    public void setCellPadding(int padding)
