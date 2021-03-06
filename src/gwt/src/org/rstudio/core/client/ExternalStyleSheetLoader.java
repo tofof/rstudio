@@ -41,7 +41,7 @@ public class ExternalStyleSheetLoader
    {
       this(Document.get(), url);
    }
-   
+
    public ExternalStyleSheetLoader(Document document, String url)
    {
       document_ = document;
@@ -105,7 +105,7 @@ public class ExternalStyleSheetLoader
       });
    }
 
-   private LinkedList<Callback> callbacks_ = new LinkedList<Callback>();
+   private LinkedList<Callback> callbacks_ = new LinkedList<>();
    private State state_ = State.Start;
    private final String url_;
    private final Document document_;

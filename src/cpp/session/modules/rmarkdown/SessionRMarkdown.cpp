@@ -533,7 +533,7 @@ private:
       error = r::exec::evaluateString(renderFunc, &renderFuncSEXP, &rProtect);
       if (error || !r::sexp::isFunction((renderFuncSEXP)))
       {
-         boost::format fmt("(function(input, ...) { system(paste0(\"%1% '\", input, \"'\")) })");
+         boost::format fmt("(function(input, ...) { system(paste0('%1% \"', input, '\"')) })");
          renderFunc = boost::str(fmt % renderFunc);
       }
 
@@ -564,6 +564,18 @@ private:
 
       // set the not cran env var
       environment.push_back(std::make_pair("NOT_CRAN", "true"));
+
+      // pass along the current Python environment, if any
+      std::string reticulatePython;
+      error = r::exec::RFunction(".rs.inferReticulatePython").call(&reticulatePython);
+      if (error) {
+         LOG_ERROR(error);
+      }
+      if (!reticulatePython.empty())
+      {
+         // we found a Python version; forward it
+         environment.push_back(std::make_pair("RETICULATE_PYTHON", reticulatePython));
+      }
 
       // render unless we were handed an existing output file
       allOutput_.clear();

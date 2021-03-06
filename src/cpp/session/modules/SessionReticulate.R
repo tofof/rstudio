@@ -18,6 +18,7 @@
    PYTHON_INITIALIZED = "python_initialized",
    REPL_INITIALIZED   = "repl_initialized",
    REPL_ITERATION     = "repl_iteration",
+   REPL_BUSY          = "repl_busy",
    REPL_TEARDOWN      = "repl_teardown"
 ))
 
@@ -220,10 +221,20 @@
 
 .rs.addFunction("reticulate.replInitialize", function()
 {
+   # compute interpreter info (only needs to be done once as the Python
+   # interpreter cannot be re-initialized again in the same session)
+   info <- .rs.getVar("python.activeInterpreterInfo")
+   if (is.null(info))
+   {
+      config <- reticulate::py_config()
+      info <- .rs.python.describeInterpreter(config$python)
+      .rs.setVar("python.activeInterpreterInfo", info)
+   }
+   
    # signal a switch to Python context
    .rs.reticulate.enqueueClientEvent(
       .rs.reticulateEvents$REPL_INITIALIZED,
-      list()
+      info
    )
    
 })
@@ -273,6 +284,13 @@
    FALSE
 })
 
+.rs.addFunction("reticulate.replBusy", function(busy)
+{
+   .rs.reticulate.enqueueClientEvent(
+      .rs.reticulateEvents$REPL_BUSY,
+      list(busy = .rs.scalar(busy))
+   )
+})
 
 .rs.addFunction("reticulate.replTeardown", function()
 {
@@ -1496,6 +1514,25 @@ html.heading = _heading
    else
       get(name, envir = parent)
    
+   # is this a null pointer? if so, handle that up-front
+   if (reticulate:::py_is_null_xptr(object))
+   {
+      result <- list(
+         name              = .rs.scalar(name),
+         type              = .rs.scalar("<unknown>"),
+         clazz             = "<unknown>",
+         is_data           = .rs.scalar(TRUE),
+         value             = .rs.scalar("<Null pointer>"),
+         description       = .rs.scalar("<Null pointer>"),
+         size              = .rs.scalar(0L),
+         length            = .rs.scalar(0L),
+         contents          = list(),
+         contents_deferred = .rs.scalar(FALSE)
+      )
+      
+      return(result)
+   }
+   
    # is this object 'data'? consider non-callable, non-module objects as data
    isData <- !(
       grepl("^__.*__$", name) ||
@@ -1959,8 +1996,55 @@ options(reticulate.repl.hook = function(buffer, contents, trimmed)
    .rs.reticulate.replHook(buffer, contents, trimmed)
 })
 
+options(reticulate.repl.busy = function(busy)
+{
+   .rs.reticulate.replBusy(busy)
+})
+
 options(reticulate.repl.teardown = function()
 {
    .rs.reticulate.replTeardown()
 })
 
+# Attempts to infer the current Python interpreter used by reticulate
+.rs.addFunction("inferReticulatePython", function() {
+   # Use existing RETICULATE_PYTHON if set
+   env_value <- Sys.getenv("RETICULATE_PYTHON")
+   if (nzchar(env_value)) {
+      return(env_value)
+   }
+
+   # If the reticulate package is installed, we can ask it what it's using
+   if (.rs.isPackageInstalled("reticulate")) {
+      if (reticulate::py_available(initialize = FALSE)) {
+         # Python is available/initialized; use it
+         py_config <- reticulate::py_config()
+         if (!is.null(py_config) && !is.null(py_config$python)) {
+            return(py_config$python)
+         }
+      } 
+
+      # Couldn't find initialized Python; attempt to discover it
+
+      # First, turn off Miniconda support in reticulate so that it doesn't 
+      # prompt the user to install it during Python version discovery
+      prev_miniconda <- Sys.getenv("RETICULATE_MINICONDA_ENABLED")
+      Sys.setenv(RETICULATE_MINICONDA_ENABLED = "FALSE")
+
+      # Then perform a Python version scan/discovery
+      py_config <- NULL
+      tryCatch({
+         py_config <- reticulate::py_discover_config()
+      }, finally = {
+         Sys.setenv(RETICULATE_MINICONDA_ENABLED = prev_miniconda)
+      })
+
+      # Return a Python binary if we found one
+      if (!is.null(py_config) && !is.null(py_config$python)) {
+         return(py_config$python)
+      }
+   }
+
+   # We didn't find any indication of the python version
+   ""
+})

@@ -32,12 +32,12 @@ public class PythonInterpreterSelectionDialog extends ModalDialog<PythonInterpre
       super("Python Interpreters", Roles.getDialogRole(), operation);
       setOkButtonCaption("Select");
       
-      widgets_ = new WidgetListBox<PythonInterpreterListEntryUi>();
+      widgets_ = new WidgetListBox<>();
       widgets_.setHeight("420px");
       widgets_.setAriaLabel("Python Interpreters");
       
       for (PythonInterpreter interpreter : JsUtil.asIterable(interpreters))
-         if (interpreter.getVersion() != null)
+         if (interpreter.isValid())
             widgets_.addItem(new PythonInterpreterListEntryUi(interpreter));
    }
    

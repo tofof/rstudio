@@ -59,6 +59,7 @@ public abstract class
    public abstract AppCommand saveSourceDocWithEncoding();
    public abstract AppCommand saveAllSourceDocs();
    public abstract AppCommand renameSourceDoc();
+   public abstract AppCommand copySourceDocPath();
    public abstract AppCommand closeSourceDoc();
    public abstract AppCommand closeOtherSourceDocs();
    public abstract AppCommand closeAllSourceDocs();
@@ -372,6 +373,9 @@ public abstract class
    public abstract AppCommand activateEnvironment();
    public abstract AppCommand layoutZoomEnvironment();
    public abstract AppCommand refreshEnvironment();
+   public abstract AppCommand freeUnusedMemory();
+   public abstract AppCommand toggleShowMemoryUsage();
+   public abstract AppCommand showMemoryUsageReport();
 
    // Plots
    public abstract AppCommand nextPlot();

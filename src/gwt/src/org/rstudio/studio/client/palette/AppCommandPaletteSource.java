@@ -22,8 +22,9 @@ import java.util.Set;
 import org.rstudio.core.client.Debug;
 import org.rstudio.core.client.StringUtil;
 import org.rstudio.core.client.command.AppCommand;
+import org.rstudio.core.client.command.AppCommandBinding;
+import org.rstudio.core.client.command.KeyCommandBinding;
 import org.rstudio.core.client.command.KeyMap;
-import org.rstudio.core.client.command.KeyMap.KeyMapType;
 import org.rstudio.core.client.command.KeySequence;
 import org.rstudio.core.client.command.ShortcutManager;
 import org.rstudio.studio.client.palette.model.CommandPaletteEntryProvider;
@@ -36,15 +37,15 @@ public class AppCommandPaletteSource implements CommandPaletteEntryProvider
    public AppCommandPaletteSource(ShortcutManager shortcuts, Commands commands)
    {
       commands_ = commands;
-      map_ = shortcuts.getKeyMap(KeyMapType.APPLICATION);
+      map_ = shortcuts.getKeyMap(KeyMap.KeyMapType.APPLICATION);
    }
 
    @Override
    public List<CommandPaletteItem> getCommandPaletteItems()
    {
-      List<CommandPaletteItem> items = new ArrayList<CommandPaletteItem>();
-      List<String> sorted = new ArrayList<String>();
-      Set<String> unsorted = new HashSet<String>();
+      List<CommandPaletteItem> items = new ArrayList<>();
+      List<String> sorted = new ArrayList<>();
+      Set<String> unsorted = new HashSet<>();
       unsorted.addAll(commands_.getCommands().keySet());
 
       // Front-load the first page of results with some useful commands; we don't attempt to sort
@@ -106,11 +107,8 @@ public class AppCommandPaletteSource implements CommandPaletteEntryProvider
             continue;
          }
 
-         // Look up the key binding for this command
-         List<KeySequence> keys = map_.getBindings(command.getId());
-         
          // Create an application command entry
-         items.add(new AppCommandPaletteItem(command, keys));
+         items.add(new AppCommandPaletteItem(command, getKeyBindings(command)));
       }
 
       return items;
@@ -131,7 +129,44 @@ public class AppCommandPaletteSource implements CommandPaletteEntryProvider
          return null;
       }
 
-      return new AppCommandPaletteItem(command, map_.getBindings(id));
+      return new AppCommandPaletteItem(command, getKeyBindings(command));
+   }
+
+   /**
+    * Look up the active key bindings for a given command
+    *
+    * @param command The app command to find key bindings for
+    * @return A list of key sequences bound to the command
+    */
+   private List<KeySequence> getKeyBindings(AppCommand command)
+   {
+      List<KeySequence> keys = new ArrayList<>();
+
+      // Look up the bindings for this command and iterate over each
+      List<KeyCommandBinding> bindings = map_.getKeyCommandBindings(command.getId());
+      for (KeyCommandBinding binding: bindings)
+      {
+         // Check if this binding is for an app command for sanity; we would not
+         // expect another kind of binding since this is an AppCommand
+         KeyMap.CommandBinding commandBinding = binding.getBinding();
+         if (!(commandBinding instanceof AppCommandBinding))
+         {
+            continue;
+         }
+
+         // Check to see whether this binding is enabled in the current mode; some
+         // command bindings are specific to (or exclusive of) Vim/Emacs mode
+         AppCommandBinding appBinding = (AppCommandBinding) commandBinding;
+         if (!appBinding.isEnabledInCurrentMode())
+         {
+            continue;
+         }
+
+         // This binding is active
+         keys.add(binding.getKeys());
+      }
+
+      return keys;
    }
 
    @Override

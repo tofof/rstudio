@@ -22,7 +22,6 @@ import java.util.List;
 import org.rstudio.core.client.Debug;
 import org.rstudio.core.client.StringUtil;
 import org.rstudio.studio.client.palette.model.CommandPaletteEntryProvider;
-import org.rstudio.studio.client.palette.model.CommandPaletteEntrySource;
 import org.rstudio.studio.client.palette.model.CommandPaletteItem;
 
 import com.google.gwt.aria.client.MenuitemRole;
@@ -143,6 +142,8 @@ public class PanmirrorToolbarCommands implements CommandPaletteEntryProvider
       // outline
       add(PanmirrorCommands.GoToNextSection, "Go to Next Section");
       add(PanmirrorCommands.GoToPreviousSection, "Go to Previous Section");
+      add(PanmirrorCommands.GoToNextChunk, "Go to Next Chunk");
+      add(PanmirrorCommands.GoToPreviousChunk, "Go to Previous Chunk");
    }
    
    public PanmirrorCommandUI get(String id)
@@ -170,7 +171,7 @@ public class PanmirrorToolbarCommands implements CommandPaletteEntryProvider
    @Override
    public List<CommandPaletteItem> getCommandPaletteItems()
    {
-      List<CommandPaletteItem> items = new ArrayList<CommandPaletteItem>();
+      List<CommandPaletteItem> items = new ArrayList<>();
       for (PanmirrorCommandUI cmd: commandsUI_.values())
       {
          if (cmd != null && cmd.isVisible())
@@ -245,5 +246,5 @@ public class PanmirrorToolbarCommands implements CommandPaletteEntryProvider
    }
    
    private PanmirrorCommand[] commands_ = null;
-   private final HashMap<String,PanmirrorCommandUI> commandsUI_ = new HashMap<String,PanmirrorCommandUI>();
+   private final HashMap<String,PanmirrorCommandUI> commandsUI_ = new HashMap<>();
 }

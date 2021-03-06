@@ -489,6 +489,10 @@ public class VirtualConsole
     */
    public void submit(String data, String clazz, boolean forceNewRange, boolean ariaLiveAnnounce)
    {
+      boolean wasAtBottom = false;
+      if (isVirtualized())
+         wasAtBottom = VirtualScrollerManager.scrolledToBottom(parent_.getParentElement());
+
       // Only capture new elements when dealing with error output, which
       // is the only place that sets forceNewRange to true. This is just an
       // optimization to avoid unnecessary overhead for large (non-error)
@@ -649,9 +653,19 @@ public class VirtualConsole
          match = match.nextMatch();
       }
 
+      Entry<Integer, ClassRange> last = class_.lastEntry();
+      if (last != null)
+      {
+         ClassRange range = last.getValue();
+         if (isVirtualized()) VirtualScrollerManager.prune(parent_.getParentElement(), range.element);
+      }
+
       // If there was any plain text after the last control character, add it
       if (tail < data.length())
          text(data.substring(tail), currentClazz, forceNewRange);
+
+      if (wasAtBottom && isVirtualized())
+         VirtualScrollerManager.scrollToBottom(parent_.getParentElement());
    }
 
    // Elements added by last submit call; only captured if forceNewRange was true

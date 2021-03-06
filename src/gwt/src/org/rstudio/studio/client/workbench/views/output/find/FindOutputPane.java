@@ -14,7 +14,6 @@
  */
 package org.rstudio.studio.client.workbench.views.output.find;
 
-import com.google.gwt.aria.client.Roles;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.dom.client.TableRowElement;
@@ -342,10 +341,11 @@ public class FindOutputPane extends WorkbenchPane
    }
 
    @Override
-   public void updateSearchLabel(String query, String path)
+   public void updateSearchLabel(String query, String path, boolean wholeWord)
    {
+      String intro = wholeWord ? "Results for whole word " : "Results for ";
       SafeHtmlBuilder builder = new SafeHtmlBuilder();
-      builder.appendEscaped("Results for ")
+      builder.appendEscaped(intro)
             .appendHtmlConstant("<strong>")
             .appendEscaped(query)
             .appendHtmlConstant("</strong>")
@@ -355,10 +355,11 @@ public class FindOutputPane extends WorkbenchPane
    }
 
    @Override
-   public void updateSearchLabel(String query, String path, String replace)
+   public void updateSearchLabel(String query, String path, String replace, boolean wholeWord)
    {
+      String intro = wholeWord ? "Replace results for whole word " : "Replace results for ";
       SafeHtmlBuilder builder = new SafeHtmlBuilder();
-      builder.appendEscaped("Replace results for ")
+      builder.appendEscaped(intro)
             .appendHtmlConstant("<strong>")
             .appendEscaped(query)
             .appendHtmlConstant("</strong>")
@@ -372,10 +373,12 @@ public class FindOutputPane extends WorkbenchPane
    }
 
    @Override
-   public void updateSearchLabel(String query, String path, String replace, int successCount, int errorCount)
+   public void updateSearchLabel(String query, String path, String replace,
+                                 boolean wholeWord, int successCount, int errorCount)
    {
+      String intro = wholeWord ? "Replace results for whole word " : "Replace results for ";
       SafeHtmlBuilder builder = new SafeHtmlBuilder();
-      builder.appendEscaped("Replace results for ")
+      builder.appendEscaped(intro)
             .appendHtmlConstant("<strong>")
             .appendEscaped(query)
             .appendHtmlConstant("</strong>")

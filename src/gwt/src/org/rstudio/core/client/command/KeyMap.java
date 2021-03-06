@@ -20,6 +20,7 @@ package org.rstudio.core.client.command;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.gwt.user.client.Command;
 import org.rstudio.core.client.CommandWith2Args;
 import org.rstudio.core.client.DirectedGraph;
 import org.rstudio.core.client.Mutable;
@@ -44,16 +45,16 @@ public class KeyMap
 
    public KeyMap()
    {
-      graph_ = new DirectedGraph<KeyCombination, List<CommandBinding>>(new DefaultConstructor<List<CommandBinding>>()
+      graph_ = new DirectedGraph<>(new DefaultConstructor<List<CommandBinding>>()
       {
          @Override
          public List<CommandBinding> create()
          {
-            return new ArrayList<CommandBinding>();
+            return new ArrayList<>();
          }
       });
 
-      idToNodeMap_ = new SafeMap<String, List<DirectedGraph<KeyCombination, List<CommandBinding>>>>();
+      idToNodeMap_ = new SafeMap<>();
    }
 
    public void addBinding(KeySequence keys, CommandBinding command)
@@ -61,11 +62,11 @@ public class KeyMap
       DirectedGraph<KeyCombination, List<CommandBinding>> node = graph_.ensureNode(keys.getData());
 
       if (node.getValue() == null)
-         node.setValue(new ArrayList<CommandBinding>());
+         node.setValue(new ArrayList<>());
       node.getValue().add(0, command);
 
       if (!idToNodeMap_.containsKey(command.getId()))
-         idToNodeMap_.put(command.getId(), new ArrayList<DirectedGraph<KeyCombination, List<CommandBinding>>>());
+         idToNodeMap_.put(command.getId(), new ArrayList<>());
       idToNodeMap_.get(command.getId()).add(node);
    }
 
@@ -94,7 +95,7 @@ public class KeyMap
          if (bindings == null || bindings.isEmpty())
             continue;
 
-         List<CommandBinding> filtered = new ArrayList<CommandBinding>();
+         List<CommandBinding> filtered = new ArrayList<>();
          for (CommandBinding binding : bindings)
             if (binding.getId() != command.getId())
                filtered.add(binding);
@@ -121,7 +122,7 @@ public class KeyMap
 
    public List<KeySequence> getBindings(String id)
    {
-      List<KeySequence> keys = new ArrayList<KeySequence>();
+      List<KeySequence> keys = new ArrayList<>();
       List<DirectedGraph<KeyCombination, List<CommandBinding>>> bindings = idToNodeMap_.get(id);
       if (bindings == null)
          return keys;
@@ -130,6 +131,38 @@ public class KeyMap
          keys.add(new KeySequence(bindings.get(i).getKeyChain()));
 
       return keys;
+   }
+
+   /**
+    * Returns a list of key/command bindings for the given command.
+    *
+    * @param id The command to look up bindings for
+    * @return A list of key bindings for the command
+    */
+   public List<KeyCommandBinding> getKeyCommandBindings(String id)
+   {
+      List<KeyCommandBinding> keyBindings = new ArrayList<>();
+      List<DirectedGraph<KeyCombination, List<CommandBinding>>> bindings = idToNodeMap_.get(id);
+      if (bindings == null)
+      {
+         // No bindings found, so return an empty list
+         return keyBindings;
+      }
+
+      for (int i = 0, n = bindings.size(); i < n; i++)
+      {
+         // For this purpose, we're only interested in the first command binding
+         // for the key sequence
+         List<CommandBinding> commandBindings = bindings.get(i).getValue();
+         if (commandBindings.size() > 0)
+         {
+            keyBindings.add(new KeyCommandBinding(
+               commandBindings.get(0),
+               new KeySequence(bindings.get(i).getKeyChain())));
+         }
+      }
+
+      return keyBindings;
    }
 
    public CommandBinding getActiveBinding(KeySequence keys, boolean includeDisabled)
@@ -152,7 +185,7 @@ public class KeyMap
       if (node == null)
          return false;
 
-      final Mutable<Boolean> pending = new Mutable<Boolean>(false);
+      final Mutable<Boolean> pending = new Mutable<>(false);
       node.forEachNode(new ForEachNodeCommand<KeyCombination, List<CommandBinding>>()
       {
          @Override

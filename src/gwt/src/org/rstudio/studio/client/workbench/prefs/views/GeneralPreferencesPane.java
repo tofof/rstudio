@@ -414,9 +414,13 @@ public class GeneralPreferencesPane extends PreferencesPane
 
       loadRData_.setValue(prefs.loadWorkspace().getValue());
       
+      // NOTE: we intentionally ignore sessionInfo's version of the
+      // initial working directory here as that might reference a
+      // project-specific location, and we don't want that to end up
+      // encoded as part of the user's global preferences
       String workingDir = prefs.initialWorkingDirectory().getValue();
       if (StringUtil.isNullOrEmpty(workingDir))
-         workingDir = session_.getSessionInfo().getInitialWorkingDir();
+         workingDir = "~";
       
       dirChooser_.setText(workingDir);
 
@@ -571,7 +575,7 @@ public class GeneralPreferencesPane extends PreferencesPane
 
    private void initializeGraphicsBackendWidget()
    {
-      Map<String, String> valuesToLabelsMap = new HashMap<String, String>();
+      Map<String, String> valuesToLabelsMap = new HashMap<>();
       valuesToLabelsMap.put(UserPrefs.GRAPHICS_BACKEND_DEFAULT, " (Default)");
       valuesToLabelsMap.put(UserPrefs.GRAPHICS_BACKEND_QUARTZ,    "Quartz");
       valuesToLabelsMap.put(UserPrefs.GRAPHICS_BACKEND_WINDOWS,   "Windows");

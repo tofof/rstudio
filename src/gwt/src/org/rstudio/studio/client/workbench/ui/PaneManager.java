@@ -63,9 +63,9 @@ import org.rstudio.studio.client.workbench.model.Session;
 import org.rstudio.studio.client.workbench.model.helper.IntStateValue;
 import org.rstudio.studio.client.workbench.model.helper.JSObjectStateValue;
 import org.rstudio.studio.client.workbench.prefs.events.UserPrefsChangedEvent;
-import org.rstudio.studio.client.workbench.prefs.events.UserPrefsChangedHandler;
 import org.rstudio.studio.client.workbench.prefs.model.UserPrefs;
 import org.rstudio.studio.client.workbench.prefs.views.PaneLayoutPreferencesPane;
+import org.rstudio.studio.client.workbench.views.console.ConsoleInterpreterVersion;
 import org.rstudio.studio.client.workbench.views.console.ConsolePane;
 import org.rstudio.studio.client.workbench.views.output.find.FindOutputTab;
 import org.rstudio.studio.client.workbench.views.output.markers.MarkersOutputTab;
@@ -234,6 +234,7 @@ public class PaneManager
                       @Named("R Markdown") final WorkbenchTab renderRmdTab,
                       @Named("Deploy") final WorkbenchTab deployContentTab,
                       @Named("Terminal") final WorkbenchTab terminalTab,
+                      @Named("Tests") final WorkbenchTab testsTab,
                       @Named("Jobs") final WorkbenchTab jobsTab,
                       @Named("Launcher") final WorkbenchTab launcherJobsTab,
                       @Named("Data Output") final WorkbenchTab dataTab,
@@ -271,6 +272,7 @@ public class PaneManager
       jobsTab_ = jobsTab;
       launcherJobsTab_ = launcherJobsTab;
       optionsLoader_ = optionsLoader;
+      testsTab_ = testsTab;
       dataTab_ = dataTab;
       tutorialTab_ = tutorialTab;
       pGlobalDisplay_ = pGlobalDisplay;
@@ -372,12 +374,37 @@ public class PaneManager
          center_.replaceWindows(newPanes.get(0), newPanes.get(1));
          right_.replaceWindows(newPanes.get(2), newPanes.get(3));
 
+         tabs1_ = tabNamesToTabs(evt.getValue().getTabSet1());
+         tabs2_ = tabNamesToTabs(evt.getValue().getTabSet2());
+
+         WindowState oldTabSet1State = panesByName_.get("TabSet1").getState();
+         WindowState oldTabSet2State = panesByName_.get("TabSet2").getState();
+         WindowState tabSet1State = setWindowStateOnTabChange(panesByName_.get("TabSet1"),
+         tabSet1TabPanel_, tabs1_);
+         WindowState tabSet2State = setWindowStateOnTabChange(panesByName_.get("TabSet2"),
+            tabSet2TabPanel_, tabs2_);
+
+         // Additional checks when tab set panes are in the same column and either has had a
+         // state change
+         if (getCurrentConfig().getTabSet1Left() == getCurrentConfig().getTabSet2Left() &&
+             (oldTabSet1State != tabSet1State || oldTabSet2State != tabSet2State))
+         {
+            if (tabSet1State == WindowState.MINIMIZE &&
+                tabSet2State == WindowState.MINIMIZE)
+            {
+               double rightTargetSize = 0.0;
+               if (getCurrentConfig().getTabSet1Left())
+                  rightTargetSize = right_.getOffsetWidth() + center_.getOffsetWidth();
+               resizeHorizontally(rightTargetSize, panel_.getLeftWidgetSizes());
+            }
+            else if (center_.getOffsetWidth() == 0 || right_.getOffsetWidth() == 0)
+               resizeHorizontally(panel_.getDefaultSplitterWidth(), panel_.getLeftWidgetSizes());
+         }
+
          tabSet1TabPanel_.clear();
          tabSet2TabPanel_.clear();
          hiddenTabSetTabPanel_.clear();
-         tabs1_ = tabNamesToTabs(evt.getValue().getTabSet1());
          populateTabPanel(tabs1_, tabSet1TabPanel_, tabSet1MinPanel_);
-         tabs2_ = tabNamesToTabs(evt.getValue().getTabSet2());
          populateTabPanel(tabs2_, tabSet2TabPanel_, tabSet2MinPanel_);
          hiddenTabs_ = tabNamesToTabs(evt.getValue().getHiddenTabSet());
          populateTabPanel(hiddenTabs_, hiddenTabSetTabPanel_, hiddenTabSetMinPanel_);
@@ -385,7 +412,7 @@ public class PaneManager
          // manage source column commands
          boolean visible = userPrefs.allowSourceColumns().getValue() &&
             (userPrefs.panes().getValue().getAdditionalSourceColumns() < MAX_COLUMN_COUNT);
-         
+
          commands_.newSourceColumn().setVisible(visible);
          commands_.openSourceDocNewColumn().setVisible(visible);
 
@@ -445,7 +472,7 @@ public class PaneManager
             ManageLayoutCommandsEvent.TYPE,
             event -> manageLayoutCommands());
 
-      eventBus.addHandler(UserPrefsChangedEvent.TYPE, new UserPrefsChangedHandler()
+      eventBus.addHandler(UserPrefsChangedEvent.TYPE, new UserPrefsChangedEvent.Handler()
       {
          @Override
          public void onUserPrefsChanged(UserPrefsChangedEvent e)
@@ -682,7 +709,7 @@ public class PaneManager
       if (validateNewColumnRequest())
          createAndDisplaySourceColumn();
    }
-   
+
    @Handler
    public void onOpenSourceDocNewColumn()
    {
@@ -715,7 +742,7 @@ public class PaneManager
       }
       return true;
    }
-   
+
    private String getAdjacentWindow(LogicalWindow window, boolean before)
    {
       if (window.getNormal() == null)
@@ -768,6 +795,26 @@ public class PaneManager
       return "";
    }
 
+   private WindowState setWindowStateOnTabChange(LogicalWindow window, WorkbenchTabPanel tabPanel,
+                                                 ArrayList<Tab> tabs)
+   {
+      WindowState newState = window.getState();
+      if (tabs.isEmpty() && window.getState() != WindowState.MINIMIZE)
+         newState = WindowState.MINIMIZE;
+      else if (tabs.size() == 1 && tabs.get(0) == Tab.Presentation)
+      {
+         if (!session_.getSessionInfo().getPresentationState().isActive() &&
+             window.getState() != WindowState.MINIMIZE)
+            newState = WindowState.MINIMIZE;
+      }
+      else if (tabPanel.isEmpty() && !tabs.isEmpty())
+         newState = WindowState.NORMAL;
+
+      if (newState != window.getState())
+         window.onWindowStateChange(new WindowStateChangeEvent(newState));
+      return newState;
+   }
+
    @SuppressWarnings("rawtypes")
    private void focusWindow(String name)
    {
@@ -785,8 +832,8 @@ public class PaneManager
             selected = consoleTabPanel_.getSelectedIndex() >= 0 ?
                consoleTabPanel_.getSelectedTab() :
                null;
-            
-            // Special handling for Console; Console does not have a WorkbenchTab when there are 
+
+            // Special handling for Console; Console does not have a WorkbenchTab when there are
             // no other Console tabs open on start up and none have been added.
             if (selected == null || StringUtil.equals(selected.getTitle(), "Console"))
             {
@@ -811,15 +858,15 @@ public class PaneManager
    private void focusAdjacentWindow(LogicalWindow window, boolean before)
    {
       String adjacent = getAdjacentWindow(window, before);
-   
+
       // TabSet1 and TabSet2 could be empty, if so skip to the next pane
       while ((StringUtil.equals("TabSet1", adjacent) && tabSet1TabPanel_.isEmpty()) ||
              (StringUtil.equals("TabSet2", adjacent) && tabSet2TabPanel_.isEmpty()))
          adjacent = getAdjacentWindow(panesByName_.get(adjacent), before);
-      
+
       focusWindow(adjacent);
    }
-   
+
    private void swapConsolePane(PaneConfig paneConfig, int consoleTargetIndex)
    {
       int consoleCurrentIndex = paneConfig.getConsoleIndex();
@@ -865,7 +912,7 @@ public class PaneManager
       {
          if (equals(window, maximizedWindow_))
          {
-            // If we're trying to maximize the same pane that is currently maximized, interpret 
+            // If we're trying to maximize the same pane that is currently maximized, interpret
             // as a toggle off. There is only one tab per source column so always assume toggle off.
             if (tab == Tab.SourceColumn ||
                 equals(tab, maximizedTab_))
@@ -920,7 +967,7 @@ public class PaneManager
       for (LogicalWindow pane : sourceLogicalWindows_)
          pane.onWindowStateChange(new WindowStateChangeEvent(WindowState.NORMAL));
 
-      boolean isRightWidget = 
+      boolean isRightWidget =
             DomUtils.contains(right_.getElement(), window.getActiveWidget().getElement());
       boolean isCenterWidget =
             DomUtils.contains(center_.getElement(), window.getActiveWidget().getElement());
@@ -963,7 +1010,7 @@ public class PaneManager
    {
       resizeHorizontally(rightTarget, leftTargets, null);
    }
-   
+
    private void resizeHorizontally(final double rightTarget,
                                    final ArrayList<Double> leftTargets,
                                    final Command afterComplete)
@@ -981,7 +1028,7 @@ public class PaneManager
             if (afterComplete != null)
                afterComplete.execute();
          }
-         
+
          public void onLayout(Layer layer, double progress)
          {
          }
@@ -1011,11 +1058,7 @@ public class PaneManager
 
    private void restorePaneLayout()
    {
-      // Ensure that all windows are in the 'normal' state. This allows
-      // hidden windows to display themselves, and so on. This also forces
-      // widgets to size themselves vertically.
-      for (LogicalWindow window : panes_)
-         window.onWindowStateChange(new WindowStateChangeEvent(WindowState.NORMAL, true));
+      restorePaneStateToDefault();
       restoreColumnLayout();
    }
 
@@ -1097,10 +1140,7 @@ public class PaneManager
 
    private void restoreSavedLayout()
    {
-      // Ensure that all windows are in the 'normal' state. This allows
-      // hidden windows to display themselves, and so on.
-      for (LogicalWindow window : panes_)
-         window.onWindowStateChange(new WindowStateChangeEvent(WindowState.NORMAL, true));
+      restorePaneStateToDefault();
 
       maximizedWindow_.onWindowStateChange(new WindowStateChangeEvent(WindowState.NORMAL, true));
 
@@ -1115,6 +1155,25 @@ public class PaneManager
 
       resizeHorizontally(widgetSizePriorToZoom_, leftTargets);
       invalidateSavedLayoutState(true);
+   }
+
+   private void restorePaneStateToDefault()
+   {
+      // Ensure that all windows are in the 'normal' state. This allows hidden windows to display
+      // themselves, and so on. This also forces widgets to size themselves vertically.
+      // TabSet Panes without any tabs should remain minimized.
+      for (LogicalWindow window : panes_)
+      {
+         if ((window == panesByName_.get("TabSet1") && tabSet1TabPanel_.isEmpty()) ||
+             (window == panesByName_.get("TabSet2") && tabSet2TabPanel_.isEmpty()))
+         {
+            if (window.getState() != WindowState.MINIMIZE)
+               window.onWindowStateChange(new WindowStateChangeEvent(WindowState.MINIMIZE));
+         }
+         else
+            window.onWindowStateChange(
+               new WindowStateChangeEvent(WindowState.NORMAL, true));
+      }
    }
 
    @Handler
@@ -1377,7 +1436,7 @@ public class PaneManager
       if (MathUtil.isEqual(currentColumnSize, 0.0, 0.0001))
          return LEFT_COLUMN;
 
-      // If MainSplitPanel.enforceBoundaries has been called then the rightZoomPosition is the 
+      // If MainSplitPanel.enforceBoundaries has been called then the rightZoomPosition is the
       // offsetWidth - 3
       double rightZoomPosition = panel_.getOffsetWidth();
       if (MathUtil.isEqual(currentColumnSize, rightZoomPosition, 0.0001) ||
@@ -1492,7 +1551,7 @@ public class PaneManager
       additionalSourceCount_ = sourceColumnManager_.getSize() - 1;
 
       if (count == additionalSourceCount_)
-    	  return additionalSourceCount_;
+         return additionalSourceCount_;
 
       if (count > additionalSourceCount_)
       {
@@ -1524,7 +1583,7 @@ public class PaneManager
       Widget panel = createSourceColumnWindow(name.getName(), name.getAccessibleName());
       panel_.addLeftWidget(panel);
    }
-   
+
    private ColumnName createSourceColumn()
    {
       PaneConfig.addSourcePane();
@@ -1611,7 +1670,9 @@ public class PaneManager
    private LogicalWindow createConsole()
    {
       String frameName = "Console";
+      
       PrimaryWindowFrame frame = new PrimaryWindowFrame(frameName, null);
+      frame.setTitleWidget(new ConsoleInterpreterVersion());
 
       ToolbarButton goToWorkingDirButton =
             commands_.goToWorkingDir().createToolbarButton();
@@ -1634,6 +1695,7 @@ public class PaneManager
             terminalTab_,
             eventBus_,
             goToWorkingDirButton,
+            testsTab_,
             dataTab_,
             jobsTab_,
             launcherJobsTab_);
@@ -1924,6 +1986,7 @@ public class PaneManager
    private final WorkbenchTab deployContentTab_;
    private final MarkersOutputTab markersTab_;
    private final WorkbenchTab terminalTab_;
+   private final WorkbenchTab testsTab_;
    private final WorkbenchTab jobsTab_;
    private final WorkbenchTab launcherJobsTab_;
    private final WorkbenchTab dataTab_;
