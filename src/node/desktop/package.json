@@ -6,8 +6,10 @@
   "repository": "https://github.com/rstudio/rstudio",
   "author": "RStudio",
   "license": "AGPL-3.0-only",
-  "dependencies": {
+  "dependencies": {},
+  "devDependencies": {
     "electron": "^12.0.2",
+    "eslint": "^7.23.0",
     "typescript": "^4.2.4"
   }
 }
