@@ -248,6 +248,7 @@ namespace prefs {
 #define kAlwaysShownFiles "always_shown_files"
 #define kAlwaysShownExtensions "always_shown_extensions"
 #define kSortFileNamesNaturally "sort_file_names_naturally"
+#define kSyncFilesPaneWorkingDir "sync_files_pane_working_dir"
 #define kJobsTabVisibility "jobs_tab_visibility"
 #define kJobsTabVisibilityClosed "closed"
 #define kJobsTabVisibilityShown "shown"
@@ -385,6 +386,7 @@ namespace prefs {
 #define kCommandPaletteMru "command_palette_mru"
 #define kShowMemoryUsage "show_memory_usage"
 #define kMemoryQueryIntervalSeconds "memory_query_interval_seconds"
+#define kTerminalPythonIntegration "terminal_python_integration"
 
 class UserPrefValues: public Preferences
 {
@@ -1237,6 +1239,12 @@ public:
    core::Error setSortFileNamesNaturally(bool val);
 
    /**
+    * Whether to change the directory in the Files pane automatically when the working directory in R changes.
+    */
+   bool syncFilesPaneWorkingDir();
+   core::Error setSyncFilesPaneWorkingDir(bool val);
+
+   /**
     * The visibility of the Jobs tab.
     */
    std::string jobsTabVisibility();
@@ -1703,6 +1711,12 @@ public:
     */
    int memoryQueryIntervalSeconds();
    core::Error setMemoryQueryIntervalSeconds(int val);
+
+   /**
+    * Enable Python terminal hooks. When enabled, the RStudio-configured version of Python will be placed on the PATH.
+    */
+   bool terminalPythonIntegration();
+   core::Error setTerminalPythonIntegration(bool val);
 
 };
 

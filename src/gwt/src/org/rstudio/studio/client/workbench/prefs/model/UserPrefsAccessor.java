@@ -1995,6 +1995,18 @@ public class UserPrefsAccessor extends Prefs
    }
 
    /**
+    * Whether to change the directory in the Files pane automatically when the working directory in R changes.
+    */
+   public PrefValue<Boolean> syncFilesPaneWorkingDir()
+   {
+      return bool(
+         "sync_files_pane_working_dir",
+         "Synchronize the Files pane with the current working directory", 
+         "Whether to change the directory in the Files pane automatically when the working directory in R changes.", 
+         false);
+   }
+
+   /**
     * The visibility of the Jobs tab.
     */
    public PrefValue<String> jobsTabVisibility()
@@ -3111,6 +3123,18 @@ public class UserPrefsAccessor extends Prefs
          10);
    }
 
+   /**
+    * Enable Python terminal hooks. When enabled, the RStudio-configured version of Python will be placed on the PATH.
+    */
+   public PrefValue<Boolean> terminalPythonIntegration()
+   {
+      return bool(
+         "terminal_python_integration",
+         "Enable terminal Python integration", 
+         "Enable Python terminal hooks. When enabled, the RStudio-configured version of Python will be placed on the PATH.", 
+         true);
+   }
+
    public void syncPrefs(String layer, JsObject source)
    {
       if (source.hasKey("run_rprofile_on_resume"))
@@ -3395,6 +3419,8 @@ public class UserPrefsAccessor extends Prefs
          alwaysShownExtensions().setValue(layer, source.getObject("always_shown_extensions"));
       if (source.hasKey("sort_file_names_naturally"))
          sortFileNamesNaturally().setValue(layer, source.getBool("sort_file_names_naturally"));
+      if (source.hasKey("sync_files_pane_working_dir"))
+         syncFilesPaneWorkingDir().setValue(layer, source.getBool("sync_files_pane_working_dir"));
       if (source.hasKey("jobs_tab_visibility"))
          jobsTabVisibility().setValue(layer, source.getString("jobs_tab_visibility"));
       if (source.hasKey("show_launcher_jobs_tab"))
@@ -3551,6 +3577,8 @@ public class UserPrefsAccessor extends Prefs
          showMemoryUsage().setValue(layer, source.getBool("show_memory_usage"));
       if (source.hasKey("memory_query_interval_seconds"))
          memoryQueryIntervalSeconds().setValue(layer, source.getInteger("memory_query_interval_seconds"));
+      if (source.hasKey("terminal_python_integration"))
+         terminalPythonIntegration().setValue(layer, source.getBool("terminal_python_integration"));
    }
    public List<PrefValue<?>> allPrefs()
    {
@@ -3696,6 +3724,7 @@ public class UserPrefsAccessor extends Prefs
       prefs.add(alwaysShownFiles());
       prefs.add(alwaysShownExtensions());
       prefs.add(sortFileNamesNaturally());
+      prefs.add(syncFilesPaneWorkingDir());
       prefs.add(jobsTabVisibility());
       prefs.add(showLauncherJobsTab());
       prefs.add(launcherJobsSort());
@@ -3774,6 +3803,7 @@ public class UserPrefsAccessor extends Prefs
       prefs.add(commandPaletteMru());
       prefs.add(showMemoryUsage());
       prefs.add(memoryQueryIntervalSeconds());
+      prefs.add(terminalPythonIntegration());
       return prefs;
    }
    

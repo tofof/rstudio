@@ -973,6 +973,12 @@
             "title": "Sort file names naturally in Files pane",
             "description": "Whether to sort file names naturally, so that e.g., file10.R comes after file9.R"
         },
+        "sync_files_pane_working_dir": {
+            "type": "boolean",
+            "default": false,
+            "title": "Synchronize the Files pane with the current working directory",
+            "description": "Whether to change the directory in the Files pane automatically when the working directory in R changes."
+        },
         "jobs_tab_visibility": {
             "type": "string",
             "enum": ["closed", "shown", "default"],
@@ -1492,6 +1498,12 @@
             "title": "Interval for requerying memory stats (seconds)",
             "type": "integer",
             "default": 10
+        },
+        "terminal_python_integration": {
+            "description": "Enable Python terminal hooks. When enabled, the RStudio-configured version of Python will be placed on the PATH.",
+            "title": "Enable terminal Python integration",
+            "type": "boolean",
+            "default": true
         }
     }
 }
